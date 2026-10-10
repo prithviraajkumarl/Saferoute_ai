@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useI18n } from '../../context/I18nContext';
 import { useTheme } from '../../context/ThemeContext';
+import { EmergencyContactsModal } from '../EmergencyContactsModal';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -36,69 +37,44 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const { language } = useI18n();
   const { theme } = useTheme();
 
+  const [showContactsModal, setShowContactsModal] = useState(false);
+
   const navItems = [
     {
-      to: '/dashboard',
+      to: '/app/dashboard',
       icon: LayoutDashboard,
       labelEn: 'Overview',
       labelTa: 'பொதுப் பார்வை',
-      descEn: 'Command center KPIs & alerts',
-      descTa: 'கட்டளை மைய அளவீடுகள்',
+      descEn: 'Status & weather',
+      descTa: 'பகுதி நிலை',
       badge: null,
     },
     {
-      to: '/navigation',
+      to: '/app/navigation',
       icon: Navigation,
-      labelEn: 'Safe Navigation',
-      labelTa: 'பாதுகாப்பான வழிசெலுத்தல்',
-      descEn: 'Hazard-aware corridor routing',
-      descTa: 'இடர் தவிர்ப்பு பாதை கணிப்பு',
-      badge: 'LIVE',
+      labelEn: 'Navigate',
+      labelTa: 'வழிசெலுத்தல்',
+      descEn: '3D road navigation',
+      descTa: 'சாலை வழிகாட்டல்',
+      badge: '3D',
     },
     {
-      to: '/weather',
-      icon: CloudSun,
-      labelEn: 'Weather Intelligence',
-      labelTa: 'வானிலை நுண்ணறிவு',
-      descEn: 'Doppler radar, wind & heatmaps',
-      descTa: 'ரேடார், காற்று மற்றும் வெப்ப வரைபடம்',
-      badge: 'DOPPLER',
-    },
-    {
-      to: '/incidents',
-      icon: AlertTriangle,
-      labelEn: 'Hazard & Incident Center',
-      labelTa: 'இடர்கள் & சம்பவங்கள் மையம்',
-      descEn: 'Verified community telemetry',
-      descTa: 'உறுதிப்படுத்தப்பட்ட கள இடர்கள்',
-      badge: null,
-    },
-    {
-      to: '/response',
-      icon: Radio,
-      labelEn: 'SOS & Response',
-      labelTa: 'அவசர SOS & மீட்பு பணி',
-      descEn: 'Emergency triage & dispatch queue',
-      descTa: 'அவசர நிலை வகைப்பாடு & உதவி',
-      badge: 'SOS',
-    },
-    {
-      to: '/relief-centers',
+      to: '/app/relief-centers',
       icon: Building2,
       labelEn: 'Relief Centers',
       labelTa: 'நிவாரண முகாம்கள்',
-      descEn: 'Verified shelters & occupancy',
-      descTa: 'அங்கீகரிக்கப்பட்ட புகலிடங்கள்',
+      descEn: 'Shelters & camps',
+      descTa: 'முகாம்கள்',
       badge: null,
     },
     {
-      to: '/system',
-      icon: Server,
-      labelEn: 'System & Data Status',
-      labelTa: 'கணினி நிலை & கொள்கை',
-      descEn: 'API health & heuristic v2.4.0 policy',
-      descTa: 'API இயக்கம் & இடர் கொள்கை',
-      badge: 'v2.4.0',
+      to: '/app/response',
+      icon: Radio,
+      labelEn: 'Emergency SOS',
+      labelTa: 'அவசர உதவி',
+      descEn: 'Alerts & response',
+      descTa: 'அவசர உதவி',
+      badge: 'SOS',
     },
   ];
 
@@ -126,11 +102,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   </span>
                 )}
               </div>
-              <p className={`text-[10px] truncate ${
-                theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-              }`}>
-                Disaster Intelligence & Safe Navigation
-              </p>
             </div>
           )}
         </div>
@@ -188,7 +159,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   {!isCollapsed && (
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-1">
-                        <span className="truncate">{label}</span>
+                        <span className="truncate font-semibold text-xs">{label}</span>
                         {item.badge && (
                           <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold uppercase tracking-wider ${
                             item.badge === 'LIVE'
@@ -201,17 +172,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           </span>
                         )}
                       </div>
-                      <p className={`text-[10px] truncate font-normal mt-0.5 ${
-                        isActive
-                          ? theme === 'dark'
-                            ? 'text-blue-300/80'
-                            : 'text-blue-600'
-                          : theme === 'dark'
-                          ? 'text-slate-500 group-hover:text-slate-400'
-                          : 'text-slate-400 group-hover:text-slate-600'
-                      }`}>
-                        {desc}
-                      </p>
                     </div>
                   )}
                 </>
@@ -225,25 +185,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {!isCollapsed && (
         <div className={`p-3 m-3 rounded-xl border text-[11px] space-y-2 ${
           theme === 'dark'
-            ? 'bg-slate-900/90 border-slate-800 text-slate-300'
-            : 'bg-slate-50 border-slate-200 text-slate-700'
+            ? 'bg-slate-900 border-slate-800 text-slate-200'
+            : 'bg-slate-50 border-slate-200 text-black'
         }`}>
           <div className="flex items-center justify-between font-bold text-xs">
-            <span className="flex items-center gap-1.5 text-rose-500">
-              <PhoneCall className="w-3.5 h-3.5" />
-              <span>State Emergency Helplines</span>
+            <span className="flex items-center gap-1.5 text-black">
+              <PhoneCall className="w-3.5 h-3.5 text-black" />
+              <span>Emergency Hotlines</span>
             </span>
           </div>
           <div className="grid grid-cols-2 gap-2 text-center font-mono">
             <a
               href="tel:108"
-              className="py-1.5 px-2 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-500 font-bold text-xs transition"
+              className="py-1.5 px-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-bold text-xs transition"
             >
               108 Medical
             </a>
             <a
               href="tel:1070"
-              className="py-1.5 px-2 rounded-lg bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 text-blue-500 font-bold text-xs transition"
+              className="py-1.5 px-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-300 text-black font-bold text-xs transition"
             >
               1070 Disaster
             </a>
@@ -251,25 +211,35 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       )}
 
-      {/* Footer / Desktop Collapse Toggle */}
-      <div className={`p-3 border-t flex items-center justify-between ${
+      {/* Emergency Contacts Button & Footer Toggle */}
+      <div className={`p-3 border-t space-y-2 ${
         theme === 'dark' ? 'border-slate-800 text-slate-400' : 'border-slate-200/80 text-slate-500'
       }`}>
-        {!isCollapsed && (
-          <span className="text-[10px] font-mono">
-            TN-SDMA Sachet Ready
-          </span>
-        )}
         <button
-          onClick={onToggleCollapse}
-          className={`hidden md:flex p-1.5 rounded-lg transition ${
-            theme === 'dark' ? 'hover:bg-slate-800 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-600'
-          }`}
-          title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+          onClick={() => setShowContactsModal(true)}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 text-xs font-bold transition cursor-pointer"
         >
-          {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          <PhoneCall className="w-3.5 h-3.5 text-blue-900" />
+          {!isCollapsed && <span>Emergency Contacts</span>}
         </button>
+
+        <div className="flex items-center justify-end">
+          <button
+            onClick={onToggleCollapse}
+            className={`hidden md:flex p-1.5 rounded-lg transition ${
+              theme === 'dark' ? 'hover:bg-slate-800 text-slate-400 hover:text-white' : 'hover:bg-slate-100 text-slate-600'
+            }`}
+            title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+          >
+            {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+          </button>
+        </div>
       </div>
+
+      <EmergencyContactsModal
+        isOpen={showContactsModal}
+        onClose={() => setShowContactsModal(false)}
+      />
     </div>
   );
 
@@ -282,7 +252,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         } ${
           theme === 'dark'
             ? 'bg-[#0b101d] border-r border-slate-800 text-slate-100'
-            : 'bg-white/95 backdrop-blur-md border-r border-slate-200/90 text-slate-800'
+            : 'glass-sidebar text-slate-800'
         }`}
       >
         {sidebarContent}

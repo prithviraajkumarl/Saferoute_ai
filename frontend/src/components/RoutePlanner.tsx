@@ -6,17 +6,19 @@ import {
   MapPin,
   ChevronRight,
   AlertTriangle,
-  CheckCircle2,
   Car,
   Compass,
   ArrowRight,
   Mountain,
   Search,
-  TrendingUp,
-  TrendingDown,
-  Activity,
   ShieldAlert,
   Info,
+  Droplets,
+  Wind,
+  Sun,
+  CloudRain,
+  Eye,
+  RotateCcw,
 } from 'lucide-react';
 import { RouteAssessmentResponse, CandidateRoute } from '../types';
 import { useI18n } from '../context/I18nContext';
@@ -30,6 +32,8 @@ interface RoutePlannerProps {
   onSelectRoute: (index: number) => void;
   currentOrigin?: { lat: number; lng: number };
   currentDestination?: { lat: number; lng: number };
+  onStart3DNav?: () => void;
+  is3DNavigating?: boolean;
 }
 
 export const RoutePlanner: React.FC<RoutePlannerProps> = ({
@@ -40,12 +44,14 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
   onSelectRoute,
   currentOrigin,
   currentDestination,
+  onStart3DNav,
+  is3DNavigating = false,
 }) => {
-  const { language, t } = useI18n();
+  const { language } = useI18n();
 
   // Selected Location IDs
-  const [origId, setOrigId] = useState<string>('chennai-central');
-  const [destId, setDestId] = useState<string>('velachery');
+  const [origId, setOrigId] = useState<string>('mevalurkuppam');
+  const [destId, setDestId] = useState<string>('chennai-central');
 
   // Search filter terms for dropdowns
   const [origSearch, setOrigSearch] = useState<string>('');
@@ -58,7 +64,7 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
     [origId]
   );
   const selectedDest = useMemo(
-    () => TAMIL_NADU_LOCATIONS.find((l) => l.id === destId) || TAMIL_NADU_LOCATIONS[3],
+    () => TAMIL_NADU_LOCATIONS.find((l) => l.id === destId) || TAMIL_NADU_LOCATIONS[1],
     [destId]
   );
 
@@ -93,38 +99,44 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
     assessment?.candidate_routes[0];
 
   return (
-    <div className="bg-white rounded-2xl p-4 border border-slate-200/90 shadow-xs space-y-4 text-slate-800">
-      {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600">
+    <div className="bg-white/90 backdrop-blur-xl rounded-3xl p-5 border border-white/90 shadow-md shadow-slate-200/50 space-y-5 text-slate-900 font-sans">
+      {/* ── HEADER ── */}
+      <div className="flex items-center justify-between pb-3.5 border-b border-slate-200/80">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-900 shadow-2xs">
             <Navigation className="w-4 h-4" />
           </div>
           <div>
-            <h3 className="text-sm font-bold text-slate-900">
-              Safe Route & Highway Navigator
+            <h3 className="text-sm font-black text-black tracking-tight">
+              Route & Weather
             </h3>
-            <p className="text-[11px] text-slate-500">
-              Live weather, terrain elevation & road safety across Tamil Nadu & India
-            </p>
           </div>
         </div>
       </div>
 
-      {/* Origin & Destination Selectors */}
-      <div className="space-y-3">
-        {/* Origin Selector */}
+      {/* ── 3D ROADWAY NAVIGATION BUTTON (AT THE TOP) ── */}
+      <button
+        onClick={onStart3DNav}
+        className="w-full py-3 px-4 rounded-2xl bg-black hover:bg-slate-800 text-white font-black text-xs transition shadow-md flex items-center justify-center gap-2 cursor-pointer border border-black"
+      >
+        <Compass className="w-4 h-4 text-blue-300 animate-spin-slow" />
+        <span>Start 3D Navigation</span>
+        <ArrowRight className="w-4 h-4 text-white" />
+      </button>
+
+      {/* ── GOOGLE MAPS STYLE ORIGIN & DESTINATION SELECTORS ── */}
+      <div className="space-y-2.5 bg-slate-50/70 p-3.5 rounded-2xl border border-slate-200/70">
+        {/* From Address (Origin) */}
         <div className="relative">
-          <label className="text-xs font-semibold text-slate-700 flex items-center justify-between mb-1.5">
-            <span className="flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-blue-600" />
-              <span>Starting Point</span>
+          <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 mb-1">
+            <span className="flex items-center gap-1.5 text-blue-950">
+              <span className="w-2 h-2 rounded-full bg-blue-700 inline-block" />
+              <span>From</span>
             </span>
-            <span className="text-[10px] text-slate-500 flex items-center gap-1">
-              <Mountain className="w-3 h-3 text-slate-400" />
-              <span>{selectedOrig.elev}m MSL ground</span>
+            <span className="text-[10px] text-slate-500 font-medium">
+              {selectedOrig.elev}m elevation
             </span>
-          </label>
+          </div>
 
           <button
             type="button"
@@ -132,12 +144,12 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
               setShowOrigPicker(!showOrigPicker);
               setShowDestPicker(false);
             }}
-            className="w-full text-left px-3 py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200 text-xs font-medium text-slate-800 flex items-center justify-between transition-all cursor-pointer"
+            className="w-full text-left px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 hover:border-blue-700 text-xs font-semibold text-slate-900 flex items-center justify-between transition shadow-2xs cursor-pointer"
           >
             <div>
-              <div className="font-semibold text-slate-900">{selectedOrig.name}</div>
-              <div className="text-[10px] text-slate-500">
-                {selectedOrig.district} • {selectedOrig.temp}°C • {selectedOrig.windKmh} km/h wind
+              <div className="font-bold text-black">{selectedOrig.name}</div>
+              <div className="text-[10px] text-slate-500 font-normal">
+                {selectedOrig.district}
               </div>
             </div>
             <ChevronRight className="w-4 h-4 text-slate-400" />
@@ -145,18 +157,18 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
 
           {/* Autocomplete Popup */}
           {showOrigPicker && (
-            <div className="absolute top-16 left-0 right-0 z-30 rounded-2xl bg-white border border-slate-200 shadow-xl p-2 space-y-1.5 max-h-60 overflow-y-auto">
+            <div className="absolute top-16 left-0 right-0 z-40 rounded-2xl bg-white border border-slate-300 shadow-xl p-2 space-y-1 max-h-56 overflow-y-auto">
               <div className="relative">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
                 <input
                   type="text"
-                  placeholder="Filter district, temple, or city..."
+                  placeholder="Search starting location..."
                   value={origSearch}
                   onChange={(e) => setOrigSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+                  className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-blue-600"
                 />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-0.5 mt-1">
                 {filteredOrigs.map((loc) => (
                   <button
                     key={loc.id}
@@ -166,19 +178,17 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
                       setShowOrigPicker(false);
                       setOrigSearch('');
                     }}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between cursor-pointer transition-colors ${
+                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between cursor-pointer ${
                       origId === loc.id
-                        ? 'bg-blue-50 text-blue-700 font-semibold'
-                        : 'hover:bg-slate-50 text-slate-700'
+                        ? 'bg-blue-50 text-blue-900 font-bold'
+                        : 'hover:bg-slate-50 text-slate-800'
                     }`}
                   >
                     <div>
-                      <div className="font-medium text-slate-900">{loc.name}</div>
-                      <div className="text-[10px] text-slate-500">
-                        {loc.district} • {loc.elev}m MSL
-                      </div>
+                      <div className="font-semibold">{loc.name}</div>
+                      <div className="text-[10px] text-slate-500">{loc.district}</div>
                     </div>
-                    <span className="text-[10px] text-slate-400">{loc.temp}°C</span>
+                    <span className="text-[11px] font-bold text-slate-700">{loc.temp}°C</span>
                   </button>
                 ))}
               </div>
@@ -186,30 +196,29 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
           )}
         </div>
 
-        {/* Swap Button */}
+        {/* Swap Button (⇅) */}
         <div className="flex justify-center -my-1">
           <button
             type="button"
             onClick={handleSwap}
-            className="p-1 rounded-full bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-500 hover:text-slate-800 transition-all cursor-pointer shadow-2xs"
+            className="p-1.5 rounded-full bg-white hover:bg-slate-100 border border-slate-300 text-blue-900 transition shadow-2xs cursor-pointer"
             title="Swap Origin and Destination"
           >
-            <Compass className="w-3.5 h-3.5" />
+            <RotateCcw className="w-3.5 h-3.5" />
           </button>
         </div>
 
-        {/* Destination Selector */}
+        {/* To Address (Destination) */}
         <div className="relative">
-          <label className="text-xs font-semibold text-slate-700 flex items-center justify-between mb-1.5">
-            <span className="flex items-center gap-1.5">
-              <Compass className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Destination</span>
+          <div className="flex items-center justify-between text-[11px] font-bold text-slate-600 mb-1">
+            <span className="flex items-center gap-1.5 text-blue-950">
+              <span className="w-2 h-2 rounded-full bg-black inline-block" />
+              <span>To</span>
             </span>
-            <span className="text-[10px] text-slate-500 flex items-center gap-1">
-              <Mountain className="w-3 h-3 text-slate-400" />
-              <span>{selectedDest.elev}m MSL ground</span>
+            <span className="text-[10px] text-slate-500 font-medium">
+              {selectedDest.elev}m elevation
             </span>
-          </label>
+          </div>
 
           <button
             type="button"
@@ -217,12 +226,12 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
               setShowDestPicker(!showDestPicker);
               setShowOrigPicker(false);
             }}
-            className="w-full text-left px-3 py-2.5 rounded-xl bg-slate-50 hover:bg-slate-100/80 border border-slate-200 text-xs font-medium text-slate-800 flex items-center justify-between transition-all cursor-pointer"
+            className="w-full text-left px-3.5 py-2.5 rounded-xl bg-white border border-slate-200 hover:border-blue-700 text-xs font-semibold text-slate-900 flex items-center justify-between transition shadow-2xs cursor-pointer"
           >
             <div>
-              <div className="font-semibold text-slate-900">{selectedDest.name}</div>
-              <div className="text-[10px] text-slate-500">
-                {selectedDest.district} • {selectedDest.temp}°C • {selectedDest.windKmh} km/h wind
+              <div className="font-bold text-black">{selectedDest.name}</div>
+              <div className="text-[10px] text-slate-500 font-normal">
+                {selectedDest.district}
               </div>
             </div>
             <ChevronRight className="w-4 h-4 text-slate-400" />
@@ -230,18 +239,18 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
 
           {/* Autocomplete Popup */}
           {showDestPicker && (
-            <div className="absolute top-16 left-0 right-0 z-30 rounded-2xl bg-white border border-slate-200 shadow-xl p-2 space-y-1.5 max-h-60 overflow-y-auto">
+            <div className="absolute top-16 left-0 right-0 z-40 rounded-2xl bg-white border border-slate-300 shadow-xl p-2 space-y-1 max-h-56 overflow-y-auto">
               <div className="relative">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2.5" />
                 <input
                   type="text"
-                  placeholder="Filter destination..."
+                  placeholder="Search destination location..."
                   value={destSearch}
                   onChange={(e) => setDestSearch(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+                  className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-blue-600"
                 />
               </div>
-              <div className="space-y-1">
+              <div className="space-y-0.5 mt-1">
                 {filteredDests.map((loc) => (
                   <button
                     key={loc.id}
@@ -251,19 +260,17 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
                       setShowDestPicker(false);
                       setDestSearch('');
                     }}
-                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between cursor-pointer transition-colors ${
+                    className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between cursor-pointer ${
                       destId === loc.id
-                        ? 'bg-blue-50 text-blue-700 font-semibold'
-                        : 'hover:bg-slate-50 text-slate-700'
+                        ? 'bg-blue-50 text-blue-900 font-bold'
+                        : 'hover:bg-slate-50 text-slate-800'
                     }`}
                   >
                     <div>
-                      <div className="font-medium text-slate-900">{loc.name}</div>
-                      <div className="text-[10px] text-slate-500">
-                        {loc.district} • {loc.elev}m MSL
-                      </div>
+                      <div className="font-semibold">{loc.name}</div>
+                      <div className="text-[10px] text-slate-500">{loc.district}</div>
                     </div>
-                    <span className="text-[10px] text-slate-400">{loc.temp}°C</span>
+                    <span className="text-[11px] font-bold text-slate-700">{loc.temp}°C</span>
                   </button>
                 ))}
               </div>
@@ -271,284 +278,181 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
           )}
         </div>
 
-        {/* Calculate Route Button */}
+        {/* Action Button: Get Directions & Roadways */}
         <button
           onClick={handleEvaluate}
           disabled={isLoading}
-          className="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all shadow-sm hover:shadow-md disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+          className="w-full py-2.5 rounded-xl bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold transition shadow-sm cursor-pointer flex items-center justify-center gap-2 mt-2"
         >
           {isLoading ? (
-            <div className="flex items-center gap-2">
-              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-              <span>Evaluating Weather & Road Risk...</span>
-            </div>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span>Analyzing Route...</span>
+            </span>
           ) : (
             <>
-              <Car className="w-4 h-4" />
-              <span>Calculate Safe Route Corridors</span>
+              <Car className="w-4 h-4 text-blue-200" />
+              <span>Get Directions</span>
             </>
           )}
         </button>
       </div>
 
-      {/* Evaluated Route Options */}
-      {assessment && currentRoute && (
-        <div className="space-y-3 pt-3 border-t border-slate-100">
-          <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider flex items-center justify-between">
-            <span>Available Route Options ({assessment.candidate_routes.length})</span>
-            {currentRoute.data_confidence && (
-              <span className="text-[10px] font-medium text-slate-400">
-                Confidence: <b>{currentRoute.data_confidence}</b>
-              </span>
-            )}
+      {/* ── WEATHER AT BOTH ORIGIN & DESTINATION ── */}
+      <div className="space-y-2">
+        <span className="text-xs font-bold uppercase tracking-wider text-slate-500 block">
+          Weather
+        </span>
+        <div className="grid grid-cols-2 gap-2 text-xs">
+          {/* Origin Weather */}
+          <div className="p-3 rounded-2xl bg-slate-50/90 border border-slate-200/80">
+            <span className="text-[10px] font-bold uppercase text-slate-500 block mb-0.5">
+              Origin
+            </span>
+            <div className="text-sm font-black text-black">{selectedOrig.temp}°C</div>
+            <div className="text-[11px] font-semibold text-blue-950">Partly Cloudy</div>
+            <div className="text-[10px] text-slate-600 mt-1 flex items-center gap-1">
+              <Droplets className="w-3 h-3 text-blue-600" />
+              <span>1% Rain • {selectedOrig.windKmh} km/h</span>
+            </div>
           </div>
 
-          {/* No Safe Route Alert Banner */}
-          {assessment.recommended_route_index === -1 && (
-            <div className="p-3 rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-900 text-xs flex items-start gap-2 shadow-xs">
-              <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-              <div>
-                <div className="font-bold uppercase tracking-wide text-rose-700">
-                  {language === 'ta' ? 'பாதுகாப்பான பாதை கிடைக்கவில்லை' : 'No Verified Safe Route Available'}
-                </div>
-                <div className="text-[11px] text-rose-800 mt-0.5">
-                  {language === 'ta'
-                    ? 'மதிப்பிடப்பட்ட அனைத்து பாதைகளிலும் சாலை அடைப்புகள் உள்ளன. பாதுகாப்பான வழி எதுவும் இல்லை. அதிகாரப்பூர்வ உத்தரவுகளைப் பின்பற்றவும்.'
-                    : 'All evaluated candidate corridors intersect confirmed physical road closures. Do not attempt travel without civil emergency clearance.'}
-                </div>
-              </div>
+          {/* Destination Weather */}
+          <div className="p-3 rounded-2xl bg-blue-50/80 border border-blue-200/80">
+            <span className="text-[10px] font-bold uppercase text-blue-800 block mb-0.5">
+              Destination
+            </span>
+            <div className="text-sm font-black text-black">{selectedDest.temp}°C</div>
+            <div className="text-[11px] font-semibold text-blue-950">Hot & Humid</div>
+            <div className="text-[10px] text-slate-600 mt-1 flex items-center gap-1">
+              <CloudRain className="w-3 h-3 text-blue-600" />
+              <span>25% Rain</span>
             </div>
-          )}
+          </div>
+        </div>
+      </div>
 
-          {/* Route Options Tabs */}
-          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+      {/* ── IN-BETWEEN NATURAL CALAMITIES & INCIDENT HOTSPOTS ── */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-500">
+            Hazards
+          </span>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 border border-slate-200">
+            3 Active
+          </span>
+        </div>
+
+        <div className="space-y-1.5 text-xs">
+          {/* Rain Blockage Point Alert */}
+          <div className="p-3 rounded-2xl bg-amber-50/90 border border-amber-200 text-amber-950 space-y-1">
+            <div className="flex items-center gap-1.5 font-bold text-amber-900">
+              <CloudRain className="w-4 h-4 text-amber-700 shrink-0" />
+              <span>Km 7.8: Underpass Submerged (Rain)</span>
+            </div>
+            <p className="text-[11px] text-amber-900 leading-tight">
+              Waterlogged underpass. Route automatically diverts via Poonamallee bypass.
+            </p>
+          </div>
+
+          {/* Tree Fall */}
+          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 flex items-start gap-2">
+            <AlertTriangle className="w-3.5 h-3.5 text-slate-700 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold text-black">Km 4.2: Tree Fall on NH48</span>
+              <p className="text-[11px] text-slate-600 leading-tight mt-0.5">
+                Shoulder cleared. Single lane open.
+              </p>
+            </div>
+          </div>
+
+          {/* Traffic Congestion */}
+          <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-slate-800 flex items-start gap-2">
+            <Car className="w-3.5 h-3.5 text-blue-700 shrink-0 mt-0.5" />
+            <div>
+              <span className="font-bold text-black">Km 13.5: Junction Traffic</span>
+              <p className="text-[11px] text-slate-600 leading-tight mt-0.5">
+                Delay +6 mins near Ring Road exit.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── GOOGLE MAPS STYLE TRAFFIC COLOR BREAKDOWN ── */}
+      <div className="p-3 rounded-2xl bg-slate-50/80 border border-slate-200/80 space-y-1.5">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+          Traffic
+        </span>
+        <div className="flex items-center gap-1.5 h-2 rounded-full overflow-hidden bg-slate-200">
+          <div className="h-full bg-emerald-500 rounded-l-full" style={{ width: '75%' }} title="Clear traffic (14.2 km)" />
+          <div className="h-full bg-amber-500" style={{ width: '18%' }} title="Moderate delay (3.1 km)" />
+          <div className="h-full bg-rose-500 rounded-r-full" style={{ width: '7%' }} title="Heavy congestion (1.1 km)" />
+        </div>
+        <div className="flex items-center justify-between text-[10px] text-slate-600 pt-0.5">
+          <span className="text-emerald-700 font-bold">14.2 km Clear</span>
+          <span className="text-amber-700 font-bold">3.1 km Moderate</span>
+          <span className="text-rose-700 font-bold">1.1 km Slow</span>
+        </div>
+      </div>
+
+
+
+      {/* ── CANDIDATE ROADWAY OPTIONS ── */}
+      {assessment && currentRoute && (
+        <div className="space-y-3 pt-3 border-t border-slate-200/80">
+          <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+            Routes ({assessment.candidate_routes.length})
+          </div>
+
+          <div className="space-y-2">
             {assessment.candidate_routes.map((r) => {
               const isSelected = r.route_index === selectedRouteIndex;
               const isRec = r.route_index === assessment.recommended_route_index;
 
               return (
-                <button
+                <div
                   key={r.route_index}
                   onClick={() => onSelectRoute(r.route_index)}
-                  className={`px-3 py-2 rounded-xl text-xs font-medium shrink-0 transition-all border text-left cursor-pointer ${
+                  className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
                     isSelected
-                      ? 'bg-blue-50 border-blue-400 text-blue-900 shadow-xs'
-                      : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      ? 'bg-blue-50/80 border-blue-400 text-blue-950 shadow-xs'
+                      : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-800'
                   }`}
                 >
-                  <div className="flex items-center gap-1.5 font-bold">
-                    {isRec ? (
-                      <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
-                    ) : r.has_critical_closure ? (
-                      <ShieldAlert className="w-3.5 h-3.5 text-rose-500" />
-                    ) : (
-                      <Car className="w-3.5 h-3.5 text-slate-400" />
-                    )}
-                    <span>Option {r.route_index + 1}</span>
-                    {r.has_critical_closure && (
-                      <span className="text-[9px] px-1 py-0.2 bg-rose-200 text-rose-800 rounded font-bold">CLOSED</span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {isRec ? (
+                        <ShieldCheck className="w-4 h-4 text-blue-700" />
+                      ) : (
+                        <Car className="w-4 h-4 text-slate-500" />
+                      )}
+                      <span className="font-bold text-xs text-black">
+                        {r.name}
+                      </span>
+                    </div>
+                    {isRec && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-900 text-white">
+                        RECOMMENDED
+                      </span>
                     )}
                   </div>
-                  <div className="text-[10px] text-slate-500 mt-0.5">
-                    {(r.distance_meters / 1000).toFixed(1)} km • {Math.round(r.duration_seconds / 60)} min
+
+                  <div className="flex items-center gap-3 text-xs mt-1.5">
+                    <span className="font-black text-black">
+                      {Math.round(r.duration_seconds / 60)} min
+                    </span>
+                    <span className="text-slate-500 font-medium">
+                      {(r.distance_meters / 1000).toFixed(1)} km
+                    </span>
+                    <span className="text-slate-400">•</span>
+                    <span className="font-semibold text-blue-950">
+                      {r.risk_category} RISK
+                    </span>
                   </div>
-                </button>
+                </div>
               );
             })}
-          </div>
-
-          {/* Active Route Summary Card */}
-          <div
-            className={`p-4 rounded-2xl border transition-all ${
-              currentRoute.has_critical_closure
-                ? 'bg-rose-50/70 border-rose-300'
-                : currentRoute.is_recommended
-                ? 'bg-blue-50/60 border-blue-200'
-                : 'bg-slate-50/60 border-slate-200'
-            }`}
-          >
-            {/* Title & Safety Badge */}
-            <div className="flex items-start justify-between gap-2 mb-2">
-              <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-bold text-slate-900">{currentRoute.name}</h4>
-                  {currentRoute.is_recommended && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white font-semibold">
-                      RECOMMENDED
-                    </span>
-                  )}
-                  {currentRoute.has_critical_closure && (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-600 text-white font-semibold">
-                      REJECTED
-                    </span>
-                  )}
-                </div>
-                <div className="text-xs text-slate-600 mt-1">{currentRoute.summary}</div>
-              </div>
-
-              {/* Safety Badge */}
-              <div
-                className={`text-center px-2.5 py-1 rounded-xl border text-xs font-bold ${
-                  currentRoute.risk_category === 'LOW'
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                    : currentRoute.risk_category === 'CRITICAL'
-                    ? 'bg-rose-50 border-rose-300 text-rose-800'
-                    : currentRoute.risk_category === 'HIGH'
-                    ? 'bg-rose-50 border-rose-200 text-rose-700'
-                    : 'bg-amber-50 border-amber-200 text-amber-800'
-                }`}
-              >
-                <div>{currentRoute.risk_category} RISK</div>
-                <div className="text-[10px] opacity-75">{currentRoute.risk_score}/100</div>
-              </div>
-            </div>
-
-            {/* Critical Restriction Warning Banner */}
-            {currentRoute.has_critical_closure && (
-              <div className="my-2.5 p-2.5 rounded-xl bg-rose-100 border border-rose-300 text-rose-900 text-xs flex items-start gap-2">
-                <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                <div>
-                  <div className="font-bold">CRITICAL RESTRICTION: Road Closure Confirmed</div>
-                  <div className="text-[11px] text-rose-800 mt-0.5">
-                    {language === 'ta' && currentRoute.rejection_reason_ta
-                      ? currentRoute.rejection_reason_ta
-                      : currentRoute.rejection_reason_en ||
-                        'Severe obstruction or confirmed physical road blockage detected on corridor. Strictly prevented from being recommended as a safe path.'}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Travel Distance & ETA */}
-            <div className="grid grid-cols-2 gap-2 my-3 py-2.5 border-y border-slate-200/80 text-xs">
-              <div className="flex items-center gap-2 text-slate-700">
-                <Navigation className="w-4 h-4 text-blue-600" />
-                <span className="font-semibold">
-                  {(currentRoute.distance_meters / 1000).toFixed(1)} km
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-slate-700">
-                <Clock className="w-4 h-4 text-blue-600" />
-                <span className="font-semibold">
-                  ~{Math.round(currentRoute.duration_seconds / 60)} minutes
-                </span>
-              </div>
-            </div>
-
-            {/* Road & Weather Advisory */}
-            <div className="p-3 rounded-xl bg-white border border-slate-200/90 text-xs text-slate-700 space-y-1">
-              <div className="flex items-center gap-1.5 font-bold text-slate-900">
-                <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
-                <span>Road Condition & Safety Summary</span>
-              </div>
-              <p className="text-slate-600 leading-relaxed text-[11px]">
-                {language === 'ta' ? currentRoute.explanation_ta : currentRoute.explanation_en}
-              </p>
-            </div>
-
-            {/* 1–6 Hour Predictive Forecast Trend */}
-            {currentRoute.forecast_trend && (
-              <div className="mt-3 p-3 rounded-xl bg-white border border-slate-200 text-xs space-y-1.5">
-                <div className="flex items-center justify-between text-slate-900 font-bold">
-                  <div className="flex items-center gap-1.5">
-                    <Activity className="w-3.5 h-3.5 text-blue-600" />
-                    <span>Predictive Forecast Trend (Next 1–6h)</span>
-                  </div>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${
-                      currentRoute.forecast_trend.trend_6h === 'RISING'
-                        ? 'bg-amber-100 text-amber-800'
-                        : currentRoute.forecast_trend.trend_6h === 'RECEDING'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : 'bg-slate-100 text-slate-700'
-                    }`}
-                  >
-                    6h Trend: {currentRoute.forecast_trend.trend_6h}
-                  </span>
-                </div>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
-                  {language === 'ta'
-                    ? currentRoute.forecast_trend.summary_ta
-                    : currentRoute.forecast_trend.summary_en}
-                </p>
-              </div>
-            )}
-
-            {/* Vulnerable Road Segments (Elevation & Coastal Basin) */}
-            {currentRoute.vulnerable_segments && currentRoute.vulnerable_segments.length > 0 && (
-              <div className="mt-3 space-y-2">
-                <div className="text-[11px] font-bold text-slate-700 flex items-center gap-1.5">
-                  <Mountain className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Vulnerable Terrain Segments ({currentRoute.vulnerable_segments.length}):</span>
-                </div>
-                <div className="space-y-1.5">
-                  {currentRoute.vulnerable_segments.map((seg, i) => (
-                    <div
-                      key={i}
-                      className="p-2.5 rounded-xl bg-white border border-slate-200 text-xs text-slate-700 space-y-0.5"
-                    >
-                      <div className="flex items-center justify-between font-semibold text-slate-900">
-                        <span>{seg.name}</span>
-                        <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-bold">
-                          {seg.elevation_m}m MSL
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-slate-500">
-                        {language === 'ta' && seg.risk_description_ta
-                          ? seg.risk_description_ta
-                          : seg.risk_description}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Real Warnings / Road Obstructions */}
-            {currentRoute.contributing_hazards.length > 0 && (
-              <div className="mt-3 space-y-2">
-                <div className="text-[11px] font-bold text-slate-700">
-                  Noted Road Hazards ({currentRoute.contributing_hazards.length}):
-                </div>
-                <div className="space-y-1.5">
-                  {currentRoute.contributing_hazards.map((h, i) => (
-                    <div
-                      key={i}
-                      className="p-2.5 rounded-xl bg-white border border-slate-200 text-xs flex items-start gap-2 text-slate-700"
-                    >
-                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                      <div>
-                        <div className="font-semibold text-slate-900">
-                          {h.hazard_type.replace('_', ' ')}
-                        </div>
-                        <div className="text-[11px] text-slate-500">{h.description}</div>
-                        <div className="text-[10px] text-slate-400 mt-0.5">
-                          Buffer proximity: {h.proximity_meters}m • Status: {h.verification_status}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Missing Data & Uncertainty Caution */}
-            {currentRoute.uncertainty_note && (
-              <div className="mt-3 p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-[11px] text-slate-600 flex items-start gap-2">
-                <Info className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" />
-                <span>{currentRoute.uncertainty_note}</span>
-              </div>
-            )}
-
-            {/* Data Provenance Footer */}
-            {assessment.data_provenance && (
-              <div className="mt-3 pt-2.5 border-t border-slate-200/80 text-[10px] text-slate-400 space-y-0.5">
-                <div className="font-semibold text-slate-500">Data Provenance:</div>
-                <div>Routing: {assessment.data_provenance.routing_source}</div>
-                <div>Weather: {assessment.data_provenance.weather_source}</div>
-                <div>Alerts: {assessment.data_provenance.alerts_source}</div>
-              </div>
-            )}
           </div>
         </div>
       )}

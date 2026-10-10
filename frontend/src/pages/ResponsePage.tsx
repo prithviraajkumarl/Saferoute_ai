@@ -1,23 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useI18n } from '../context/I18nContext';
 import { useTheme } from '../context/ThemeContext';
 import { api } from '../services/api';
 import { ResponderTriageQueue } from '../components/ResponderTriageQueue';
+import { AdminPortalControls } from '../components/AdminPortalControls';
+import { EmergencyContactsModal } from '../components/EmergencyContactsModal';
+import { CycloneSimulatorModal } from '../components/CycloneSimulatorModal';
 import {
   Radio,
-  ShieldAlert,
   PhoneCall,
   MapPin,
-  Clock,
   CheckCircle2,
-  AlertTriangle,
-  User,
-  Search,
-  Lock,
-  ArrowRight,
-  ShieldCheck,
   Send,
+  Shield,
+  Wind,
+  User,
+  Settings,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface ResponsePageProps {
@@ -26,11 +26,9 @@ interface ResponsePageProps {
 }
 
 export const ResponsePage: React.FC<ResponsePageProps> = ({
-  onOpenSosModal,
   isSimulated = false,
 }) => {
-  const { role } = useAuth();
-  const { language } = useI18n();
+  const { role, switchPersona } = useAuth();
   const { theme } = useTheme();
 
   // Citizen SOS Submission State
@@ -42,6 +40,8 @@ export const ResponsePage: React.FC<ResponsePageProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submittedIncidentId, setSubmittedIncidentId] = useState<string | null>(null);
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [showContactsModal, setShowContactsModal] = useState<boolean>(false);
+  const [showCycloneModal, setShowCycloneModal] = useState<boolean>(false);
 
   // Quick GPS capture
   const handleCaptureGPS = () => {
@@ -53,8 +53,7 @@ export const ResponsePage: React.FC<ResponsePageProps> = ({
             lng: Number(pos.coords.longitude.toFixed(5)),
           });
         },
-        (err) => {
-          // Graceful fallback to Chennai Central
+        () => {
           setGpsCoords({ lat: 13.0827, lng: 80.2707 });
         }
       );
@@ -66,7 +65,7 @@ export const ResponsePage: React.FC<ResponsePageProps> = ({
   const handleSubmitSos = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!description.trim()) {
-      setSubmissionError('Please provide a brief description of the emergency.');
+      setSubmissionError('Please describe the emergency.');
       return;
     }
 
@@ -82,8 +81,8 @@ export const ResponsePage: React.FC<ResponsePageProps> = ({
         severity: 'CRITICAL',
         latitude: lat,
         longitude: lng,
-        description: `[${emergencyType}] ${description} [Contact: ${personName || 'Anonymous'} - ${contactPhone || 'N/A'}]`,
-        contact_phone: contactPhone || undefined,
+        description: `[${emergencyType}] ${description} [Caller: ${personName || 'Citizen'} • Phone: ${contactPhone || '108'}]`,
+        contact_phone: contactPhone || '108',
         is_simulated: isSimulated,
         idempotency_key: idempotencyKey,
       });
@@ -91,240 +90,329 @@ export const ResponsePage: React.FC<ResponsePageProps> = ({
       setSubmittedIncidentId(res.id);
       setDescription('');
     } catch (err: any) {
-      setSubmissionError(err.message || 'Submission failed. Please use official telephone helpline 108 directly.');
+      setSubmissionError(err.message || 'Submission failed. Use official hotline 108 directly.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const cardBg = theme === 'dark'
-    ? 'bg-slate-900/80 border-slate-800 text-slate-100'
-    : 'bg-white border-slate-200 text-slate-800 shadow-sm';
-
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto select-none">
-      {/* Header Banner */}
-      <div className={`p-6 rounded-3xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
-        theme === 'dark'
-          ? 'bg-gradient-to-br from-rose-950/40 via-slate-900 to-slate-900 border-rose-900/40 text-slate-100'
-          : 'bg-gradient-to-br from-rose-50 via-white to-slate-50 border-rose-200 text-slate-900 shadow-sm'
-      }`}>
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Radio className="w-5 h-5 text-rose-500 animate-pulse" />
-            <span className="font-mono text-xs font-bold text-rose-500 uppercase tracking-wider">
-              Emergency Incident & Dispatch Protocol
-            </span>
+    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto select-none font-sans text-black">
+      {/* ── TOP HEADER & ROLE SWITCHER BAR ── */}
+      <header className="border-b border-slate-200 pb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center text-black">
+            <Radio className="w-5 h-5 text-black" />
           </div>
-          <h2 className="text-xl md:text-2xl font-black tracking-tight">
-            SOS Triage & Responder Operations Portal
-          </h2>
-          <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
-            Incident ticketing, state-machine transitions (REPORTED $\to$ TRIAGED $\to$ DISPATCHED $\to$ RESOLVED), and protected responder notes for civil disaster units.
-          </p>
-        </div>
-
-        {/* Real Emergency Disclaimer */}
-        <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs space-y-1.5 shrink-0 max-w-xs">
-          <div className="font-bold flex items-center gap-1.5 text-rose-400">
-            <ShieldAlert className="w-4 h-4 shrink-0" />
-            <span>Immediate Life Danger?</span>
-          </div>
-          <p className="text-[11px] text-slate-300 leading-tight">
-            Dial <b>108</b> (Medical/Ambulance) or <b>1070</b> (State Disaster Control) directly.
-          </p>
-          <div className="flex gap-2 pt-1 font-mono">
-            <a
-              href="tel:108"
-              className="py-1 px-2.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs"
-            >
-              Call 108
-            </a>
-            <a
-              href="tel:1070"
-              className="py-1 px-2.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs"
-            >
-              Call 1070
-            </a>
+          <div>
+            <h1 className="text-xl md:text-2xl font-black text-black tracking-tight">
+              {role === 'tourist'
+                ? 'Civilian Emergency SOS'
+                : role === 'responder'
+                ? 'First Reporter Operations Queue'
+                : 'Admin Portal Master Control System'}
+            </h1>
           </div>
         </div>
-      </div>
 
-      {/* Grid: Left Citizen SOS Trigger & Incident Tracking | Right Responder Triage Queue */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column (5 cols): Citizen Emergency SOS Trigger */}
-        <div className="lg:col-span-5 space-y-6">
-          <div className={`p-5 rounded-3xl border space-y-4 ${cardBg}`}>
-            <div className="border-b pb-3 border-slate-700/50">
-              <h3 className="font-bold text-sm flex items-center gap-2">
-                <Radio className="w-4 h-4 text-rose-500" />
-                <span>Submit Emergency Assistance Ticket</span>
-              </h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Generates unique tracked incident ticket in triage queue
-              </p>
-            </div>
+        {/* Quick Role Switcher Buttons */}
+        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white border border-slate-200 shadow-2xs self-start md:self-auto">
+          <button
+            onClick={() => switchPersona('tourist')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+              role === 'tourist'
+                ? 'bg-black text-white shadow-xs'
+                : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <User className="w-3.5 h-3.5" />
+            <span>Civilian</span>
+          </button>
 
-            {submittedIncidentId ? (
-              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-200 text-xs space-y-2">
-                <div className="flex items-center gap-2 font-bold text-emerald-400">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>SOS Ticket Logged Successfully</span>
-                </div>
-                <div className="font-mono text-sm bg-slate-900/60 p-2 rounded-xl text-center text-white border border-emerald-500/20">
-                  Ticket ID: {submittedIncidentId}
-                </div>
-                <p className="text-[11px] text-slate-300 leading-relaxed">
-                  Your location and ticket have been routed to the active responder triage board. Responders in your sector have been alerted.
-                </p>
+          <button
+            onClick={() => switchPersona('responder')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+              role === 'responder'
+                ? 'bg-black text-white shadow-xs'
+                : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <Shield className="w-3.5 h-3.5" />
+            <span>First Reporter</span>
+          </button>
+
+          <button
+            onClick={() => switchPersona('administrator')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer flex items-center gap-1.5 ${
+              role === 'administrator'
+                ? 'bg-black text-white shadow-xs'
+                : 'text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <Settings className="w-3.5 h-3.5" />
+            <span>Admin Portal</span>
+          </button>
+        </div>
+      </header>
+
+      {/* ── PORTAL VIEW 1: CIVILIAN ── */}
+      {role === 'tourist' && (
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Column: Citizen Request Assistance */}
+          <div className="lg:col-span-6 space-y-4">
+            <div className="bg-white/85 backdrop-blur-xl border border-white/90 rounded-3xl p-5 shadow-sm space-y-4 text-black">
+              <div className="border-b border-slate-200 pb-3 flex items-center justify-between">
+                <h2 className="font-black text-sm text-black">
+                  Request Assistance
+                </h2>
                 <button
-                  onClick={() => setSubmittedIncidentId(null)}
-                  className="w-full mt-2 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold cursor-pointer"
+                  type="button"
+                  onClick={() => setShowCycloneModal(true)}
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-black hover:bg-slate-800 text-white text-xs font-bold transition cursor-pointer shadow-sm"
                 >
-                  Submit Another Ticket
+                  <Wind className="w-3.5 h-3.5" />
+                  <span>Cyclone Simulator</span>
                 </button>
               </div>
-            ) : (
-              <form onSubmit={handleSubmitSos} className="space-y-3.5 text-xs">
-                {submissionError && (
-                  <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs">
-                    {submissionError}
-                  </div>
-                )}
 
-                <div>
-                  <label className="block font-semibold mb-1 text-slate-300">
-                    Emergency Nature
-                  </label>
-                  <select
-                    value={emergencyType}
-                    onChange={(e) => setEmergencyType(e.target.value)}
-                    className={`w-full p-2.5 rounded-xl border text-xs outline-none ${
-                      theme === 'dark'
-                        ? 'bg-slate-800 border-slate-700 text-white'
-                        : 'bg-slate-50 border-slate-200 text-slate-900'
-                    }`}
+              {submittedIncidentId ? (
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-black text-xs space-y-2.5">
+                  <div className="flex items-center gap-2 font-black text-black">
+                    <CheckCircle2 className="w-4 h-4 text-black" />
+                    <span>SOS Ticket Logged</span>
+                  </div>
+                  <div className="font-mono text-sm bg-white p-2.5 rounded-xl text-center text-black font-black border border-slate-300">
+                    Ticket ID: {submittedIncidentId}
+                  </div>
+                  <p className="text-xs text-slate-700">
+                    Disaster rescue units have received your coordinates. Stay on high ground.
+                  </p>
+                  <button
+                    onClick={() => setSubmittedIncidentId(null)}
+                    className="w-full mt-2 py-2 rounded-xl bg-black hover:bg-slate-800 text-white text-xs font-bold cursor-pointer transition"
                   >
-                    <option value="FLOOD_TRAPPED">Flooding Trapped / High Water Level</option>
-                    <option value="MEDICAL_EMERGENCY">Medical Emergency in Inundated Sector</option>
-                    <option value="STRUCTURAL_COLLAPSE">Structural Wall / Roof Damage</option>
-                    <option value="POWER_HAZARD">Live Submerged Power Line</option>
-                    <option value="OTHER_EVACUATION">Evacuation Transport Assistance Required</option>
-                  </select>
+                    Submit Another Ticket
+                  </button>
                 </div>
+              ) : (
+                <form onSubmit={handleSubmitSos} className="space-y-3 text-xs text-black">
+                  {submissionError && (
+                    <div className="p-2.5 rounded-xl bg-slate-100 border border-slate-300 text-black text-xs font-semibold">
+                      {submissionError}
+                    </div>
+                  )}
 
-                <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-semibold mb-1 text-slate-300">Contact Name</label>
-                    <input
-                      type="text"
-                      value={personName}
-                      onChange={(e) => setPersonName(e.target.value)}
-                      placeholder="e.g. Anand K"
-                      className={`w-full p-2.5 rounded-xl border text-xs outline-none ${
-                        theme === 'dark'
-                          ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500'
-                          : 'bg-slate-50 border-slate-200 text-slate-900'
-                      }`}
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-semibold mb-1 text-slate-300">Phone Number</label>
-                    <input
-                      type="tel"
-                      value={contactPhone}
-                      onChange={(e) => setContactPhone(e.target.value)}
-                      placeholder="+91-98400..."
-                      className={`w-full p-2.5 rounded-xl border text-xs outline-none ${
-                        theme === 'dark'
-                          ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500'
-                          : 'bg-slate-50 border-slate-200 text-slate-900'
-                      }`}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="font-semibold text-slate-300">Location Coordinates</label>
-                    <button
-                      type="button"
-                      onClick={handleCaptureGPS}
-                      className="text-[11px] font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1 cursor-pointer"
+                    <label className="block font-bold mb-1 text-black">
+                      Emergency Type
+                    </label>
+                    <select
+                      value={emergencyType}
+                      onChange={(e) => setEmergencyType(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-black text-xs font-semibold outline-none"
                     >
-                      <MapPin className="w-3 h-3" />
-                      <span>{gpsCoords ? 'Refresh GPS' : 'Capture GPS'}</span>
-                    </button>
+                      <option value="FLOOD_TRAPPED">Flooding Trapped</option>
+                      <option value="MEDICAL_EMERGENCY">Medical Emergency</option>
+                      <option value="STRUCTURAL_COLLAPSE">Structural Damage</option>
+                      <option value="POWER_HAZARD">Live Power Line</option>
+                      <option value="OTHER_EVACUATION">Evacuation Needed</option>
+                    </select>
                   </div>
-                  <div className={`p-2.5 rounded-xl border font-mono text-xs ${
-                    theme === 'dark' ? 'bg-slate-800/60 border-slate-700 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'
-                  }`}>
-                    {gpsCoords ? (
-                      <span className="text-emerald-400 font-bold">
-                        Lat: {gpsCoords.lat}, Lng: {gpsCoords.lng}
-                      </span>
-                    ) : (
-                      <span className="text-slate-400">Click Capture GPS or using default Chennai sector</span>
-                    )}
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block font-bold mb-1 text-black">Name</label>
+                      <input
+                        type="text"
+                        value={personName}
+                        onChange={(e) => setPersonName(e.target.value)}
+                        placeholder="Your Name"
+                        className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-black placeholder-slate-400 text-xs font-semibold outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-bold mb-1 text-black">Phone</label>
+                      <input
+                        type="tel"
+                        value={contactPhone}
+                        onChange={(e) => setContactPhone(e.target.value)}
+                        placeholder="Phone Number"
+                        className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-black placeholder-slate-400 text-xs font-semibold outline-none"
+                      />
+                    </div>
                   </div>
-                </div>
 
-                <div>
-                  <label className="block font-semibold mb-1 text-slate-300">
-                    Situation Details / Landmark
-                  </label>
-                  <textarea
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={3}
-                    placeholder="Describe situation, water depth, number of people needing assistance, nearest landmark..."
-                    className={`w-full p-2.5 rounded-xl border text-xs outline-none resize-none ${
-                      theme === 'dark'
-                        ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500'
-                        : 'bg-slate-50 border-slate-200 text-slate-900'
-                    }`}
-                  />
-                </div>
+                  <div>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="font-bold text-black">Location</label>
+                      <button
+                        type="button"
+                        onClick={handleCaptureGPS}
+                        className="text-[11px] font-bold text-black underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <MapPin className="w-3 h-3 text-black" />
+                        <span>{gpsCoords ? 'Refresh GPS' : 'Capture GPS'}</span>
+                      </button>
+                    </div>
+                    <div className="p-2.5 rounded-xl border border-slate-200 bg-slate-50 font-mono text-xs text-black font-semibold">
+                      {gpsCoords ? (
+                        <span>
+                          Lat: {gpsCoords.lat}, Lng: {gpsCoords.lng}
+                        </span>
+                      ) : (
+                        <span className="text-slate-600">Click Capture GPS (or default sector)</span>
+                      )}
+                    </div>
+                  </div>
 
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full py-3 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-bold text-xs shadow-lg shadow-rose-600/30 flex items-center justify-center gap-2 cursor-pointer transition disabled:opacity-50"
-                >
-                  <Send className="w-4 h-4" />
-                  <span>{isSubmitting ? 'Transmitting Ticket...' : 'Broadcast Emergency SOS Ticket'}</span>
-                </button>
-              </form>
-            )}
+                  <div>
+                    <label className="block font-bold mb-1 text-black">
+                      Details
+                    </label>
+                    <textarea
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      rows={3}
+                      placeholder="Describe situation, people count, landmark..."
+                      className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 text-black placeholder-slate-400 text-xs font-semibold outline-none resize-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full py-3 rounded-2xl bg-black hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer transition disabled:opacity-50"
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>{isSubmitting ? 'Transmitting...' : 'Send SOS Ticket'}</span>
+                  </button>
+                </form>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Right Column (7 cols): Responder Triage Queue (Embedded) */}
-        <div className="lg:col-span-7 space-y-4">
-          <div className={`p-5 rounded-3xl border space-y-4 ${cardBg}`}>
-            <div className="border-b pb-3 border-slate-700/50 flex items-center justify-between">
-              <div>
-                <h3 className="font-bold text-sm flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-blue-500" />
-                  <span>First Responder Triage & Dispatch Queue</span>
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Live state machine: REPORTED $\to$ TRIAGED $\to$ DISPATCHED $\to$ RESOLVED
+          {/* Right Column: Civilian Emergency Hotlines & Simulator Box */}
+          <div className="lg:col-span-6 space-y-4">
+            <div className="bg-white/85 backdrop-blur-xl border border-white/90 rounded-3xl p-5 shadow-sm space-y-4 text-black">
+              <div className="border-b border-slate-200 pb-3 flex items-center justify-between">
+                <h2 className="font-black text-sm text-black">
+                  Toll-Free Emergency Hotlines
+                </h2>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <a
+                  href="tel:108"
+                  className="p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition text-center block cursor-pointer"
+                >
+                  <div className="text-xl font-black text-black">108</div>
+                  <div className="text-xs font-bold text-slate-700 mt-0.5">Ambulance & Trauma</div>
+                </a>
+
+                <a
+                  href="tel:112"
+                  className="p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition text-center block cursor-pointer"
+                >
+                  <div className="text-xl font-black text-black">112</div>
+                  <div className="text-xs font-bold text-slate-700 mt-0.5">Police & Security</div>
+                </a>
+
+                <a
+                  href="tel:101"
+                  className="p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition text-center block cursor-pointer"
+                >
+                  <div className="text-xl font-black text-black">101</div>
+                  <div className="text-xs font-bold text-slate-700 mt-0.5">Fire & Rescue</div>
+                </a>
+
+                <a
+                  href="tel:1070"
+                  className="p-3.5 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 transition text-center block cursor-pointer"
+                >
+                  <div className="text-xl font-black text-black">1070</div>
+                  <div className="text-xs font-bold text-slate-700 mt-0.5">State Disaster (SDMA)</div>
+                </a>
+              </div>
+
+              {/* Cyclone Simulator Quick Trigger */}
+              <div className="p-4 rounded-2xl bg-slate-100 border border-slate-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-black flex items-center gap-1.5">
+                    <Wind className="w-4 h-4 text-black" />
+                    <span>AI Cyclone Simulator</span>
+                  </span>
+                  <button
+                    onClick={() => setShowCycloneModal(true)}
+                    className="px-3 py-1 rounded-xl bg-black hover:bg-slate-800 text-white text-xs font-bold transition cursor-pointer"
+                  >
+                    Run Simulation
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-700">
+                  Instantly tests AI-predicted cyclone telemetry, wind gust warnings, and coastal depression alerts.
                 </p>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
 
-              <div className="text-[11px] font-mono px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/30">
-                Active Role: {role}
+      {/* ── PORTAL VIEW 2: FIRST REPORTER ── */}
+      {role === 'responder' && (
+        <div className="space-y-4">
+          <div className="bg-white/85 backdrop-blur-xl border border-white/90 rounded-3xl p-5 shadow-sm space-y-4 text-black">
+            <div className="border-b border-slate-200 pb-3 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Shield className="w-4 h-4 text-black" />
+                <h2 className="font-black text-sm text-black">
+                  First Reporter Operations Queue
+                </h2>
               </div>
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-slate-100 text-black border border-slate-200">
+                Live Data Synchronized
+              </span>
             </div>
 
-            {/* Embedded Responder Triage Queue Component */}
-            <div className="min-h-[480px]">
+            <div className="min-h-[460px]">
               <ResponderTriageQueue />
             </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* ── PORTAL VIEW 3: ADMIN PORTAL ── */}
+      {role === 'administrator' && (
+        <div className="space-y-4">
+          <AdminPortalControls />
+        </div>
+      )}
+
+      {/* ── BOTTOM ACTIONS: EMERGENCY CONTACTS ── */}
+      <footer className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <button
+          onClick={() => setShowContactsModal(true)}
+          className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-black hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm"
+        >
+          <PhoneCall className="w-4 h-4" />
+          <span>Emergency Contacts (Police, Fire, Ambulance, Disaster)</span>
+        </button>
+
+        <span className="text-xs font-semibold text-slate-700">
+          State Emergency Helplines 112 • 108 • 101 • 1070
+        </span>
+      </footer>
+
+      {/* Emergency Contacts Modal */}
+      <EmergencyContactsModal
+        isOpen={showContactsModal}
+        onClose={() => setShowContactsModal(false)}
+      />
+
+      {/* Cyclone Simulator AI Notification Modal */}
+      <CycloneSimulatorModal
+        isOpen={showCycloneModal}
+        onClose={() => setShowCycloneModal(false)}
+      />
     </div>
   );
 };

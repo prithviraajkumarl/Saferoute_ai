@@ -28,8 +28,8 @@ export const AppLayout: React.FC = () => {
 
   return (
     <div className={`flex h-screen w-screen overflow-hidden ${
-      theme === 'dark' ? 'bg-[#080c16] text-slate-100' : 'bg-slate-50 text-slate-900'
-    }`}>
+      theme === 'dark' ? 'bg-[#080c16] text-slate-100' : 'text-slate-900'
+    }`} style={theme !== 'dark' ? { background: 'linear-gradient(135deg, #dbeafe 0%, #e0f2fe 25%, #f0f9ff 50%, #ecfdf5 75%, #f0fdf4 100%)', backgroundAttachment: 'fixed' } : {}}>
       {/* 1. Persistent Left Sidebar */}
       <Sidebar
         isCollapsed={isSidebarCollapsed}

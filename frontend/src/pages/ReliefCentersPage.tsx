@@ -17,7 +17,9 @@ import {
   Coffee,
   HeartPulse,
   Users,
+  PhoneCall,
 } from 'lucide-react';
+import { EmergencyContactsModal } from '../components/EmergencyContactsModal';
 
 export const ReliefCentersPage: React.FC = () => {
   const navigate = useNavigate();
@@ -28,6 +30,7 @@ export const ReliefCentersPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [districtFilter, setDistrictFilter] = useState('ALL');
+  const [showContactsModal, setShowContactsModal] = useState(false);
 
   const fetchShelters = async () => {
     setIsLoading(true);
@@ -57,44 +60,37 @@ export const ReliefCentersPage: React.FC = () => {
     return matchesQuery && matchesDistrict;
   });
 
-  const cardBg = theme === 'dark'
-    ? 'bg-slate-900/80 border-slate-800 text-slate-100'
-    : 'bg-white border-slate-200 text-slate-800 shadow-sm';
+  const cardBg = 'bg-white/85 backdrop-blur-xl border border-white/90 text-black shadow-sm';
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto select-none">
+    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto select-none font-sans text-black">
       {/* Top Banner */}
-      <div className={`p-6 rounded-3xl border flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
-        theme === 'dark'
-          ? 'bg-gradient-to-br from-emerald-950/40 via-slate-900 to-slate-900 border-emerald-900/40 text-slate-100'
-          : 'bg-gradient-to-br from-emerald-50 via-white to-slate-50 border-emerald-200 text-slate-900 shadow-sm'
-      }`}>
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <Building2 className="w-5 h-5 text-emerald-500" />
-            <span className="font-mono text-xs font-bold text-emerald-500 uppercase tracking-wider">
-              Disaster Relief Infrastructure
-            </span>
+      <div className="border-b border-slate-200 pb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-xl bg-slate-100 flex items-center justify-center text-black">
+            <Building2 className="w-4 h-4 text-black" />
           </div>
-          <h2 className="text-xl md:text-2xl font-black tracking-tight">
-            Designated Cyclone & Flood Relief Camps
-          </h2>
-          <p className="text-xs text-slate-400 max-w-2xl leading-relaxed">
-            State-sanctioned high-ground evacuation shelters, community halls, and stadiums equipped with emergency power, medical supplies, and food relief.
-          </p>
+          <h1 className="text-2xl font-black text-black tracking-tight">
+            Relief Centers
+          </h1>
         </div>
 
-        <button
-          onClick={fetchShelters}
-          className={`p-2.5 rounded-2xl border transition cursor-pointer shrink-0 ${
-            theme === 'dark'
-              ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300'
-              : 'bg-white hover:bg-slate-50 border-slate-300 text-slate-600'
-          }`}
-          title="Refresh shelter vacancies"
-        >
-          <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowContactsModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-black hover:bg-slate-800 text-white text-xs font-bold transition cursor-pointer"
+          >
+            <PhoneCall className="w-3.5 h-3.5" />
+            <span>Emergency Contacts</span>
+          </button>
+          <button
+            onClick={fetchShelters}
+            className="p-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-black transition cursor-pointer"
+            title="Refresh vacancies"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* Search and District Filter Bar */}
@@ -244,8 +240,8 @@ export const ReliefCentersPage: React.FC = () => {
                   )}
 
                   <button
-                    onClick={() => navigate('/navigation')}
-                    className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                    onClick={() => navigate('/app/navigation')}
+                    className="px-3 py-1.5 rounded-xl bg-black hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition cursor-pointer"
                   >
                     <Navigation className="w-3.5 h-3.5" />
                     <span>Navigate</span>
@@ -256,6 +252,26 @@ export const ReliefCentersPage: React.FC = () => {
           })
         )}
       </div>
+
+      {/* Footer with Emergency Contacts button */}
+      <footer className="pt-4 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <button
+          onClick={() => setShowContactsModal(true)}
+          className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-black hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm"
+        >
+          <PhoneCall className="w-4 h-4" />
+          <span>Emergency Contacts (Police, Fire, Ambulance, Disaster)</span>
+        </button>
+
+        <span className="text-xs font-semibold text-slate-600">
+          State Emergency Helplines 112 • 108 • 101 • 1070
+        </span>
+      </footer>
+
+      <EmergencyContactsModal
+        isOpen={showContactsModal}
+        onClose={() => setShowContactsModal(false)}
+      />
     </div>
   );
 };

@@ -159,6 +159,146 @@ const FALLBACK_ALERTS: OfficialAlert[] = [
   },
 ];
 
+const SOS_INCIDENTS_STORAGE_KEY = 'saferoute_sos_incidents_list';
+
+const INITIAL_DEMO_INCIDENTS: Incident[] = [
+  {
+    id: 'inc-101',
+    reference_code: 'SOS-8492',
+    user_id: 'usr-1',
+    latitude: 12.9759,
+    longitude: 80.2212,
+    address: 'Velachery Vijaya Nagar Bus Stand',
+    severity: 'CRITICAL',
+    status: 'SUBMITTED',
+    contact_phone: '+91-98401-22345',
+    description: '4 seniors stranded on 1st floor balcony. Flood level touching 4 feet.',
+    person_count: 4,
+    is_simulated: false,
+    created_at: new Date(Date.now() - 15 * 60000).toISOString(),
+    updated_at: new Date(Date.now() - 15 * 60000).toISOString(),
+    events: [],
+    assignments: [
+      {
+        id: 'asg-101',
+        incident_id: 'inc-101',
+        responder_id: 'TNDRF-BOAT-01',
+        responder_name: 'TNDRF Fast Response Boat Unit 01',
+        status: 'DISPATCHED',
+        assigned_at: new Date(Date.now() - 10 * 60000).toISOString(),
+      },
+    ],
+    public_updates: [],
+  },
+  {
+    id: 'inc-102',
+    reference_code: 'SOS-3914',
+    user_id: 'usr-2',
+    latitude: 12.9249,
+    longitude: 80.1240,
+    address: 'Tambaram Mudichur Link Road',
+    severity: 'HIGH',
+    status: 'ASSISTANCE_EN_ROUTE',
+    contact_phone: '+91-98402-99881',
+    description: 'Car stalled in moving flood current. 2 adults inside.',
+    person_count: 2,
+    is_simulated: false,
+    created_at: new Date(Date.now() - 40 * 60000).toISOString(),
+    updated_at: new Date(Date.now() - 40 * 60000).toISOString(),
+    events: [],
+    assignments: [],
+    public_updates: [],
+  },
+];
+
+const ALERTS_STORAGE_KEY = 'saferoute_alerts_list';
+const SHELTERS_STORAGE_KEY = 'saferoute_shelters_list';
+const HAZARDS_STORAGE_KEY = 'saferoute_hazards_list';
+
+function getStoredAlerts(): OfficialAlert[] {
+  try {
+    const raw = localStorage.getItem(ALERTS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {}
+  try {
+    localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(FALLBACK_ALERTS));
+  } catch (e) {}
+  return FALLBACK_ALERTS;
+}
+
+function saveStoredAlerts(items: OfficialAlert[]) {
+  try {
+    localStorage.setItem(ALERTS_STORAGE_KEY, JSON.stringify(items));
+    window.dispatchEvent(new CustomEvent('saferoute-alerts-updated', { detail: items }));
+  } catch (e) {}
+}
+
+function getStoredShelters(): Shelter[] {
+  try {
+    const raw = localStorage.getItem(SHELTERS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {}
+  try {
+    localStorage.setItem(SHELTERS_STORAGE_KEY, JSON.stringify(FALLBACK_SHELTERS));
+  } catch (e) {}
+  return FALLBACK_SHELTERS;
+}
+
+function saveStoredShelters(items: Shelter[]) {
+  try {
+    localStorage.setItem(SHELTERS_STORAGE_KEY, JSON.stringify(items));
+    window.dispatchEvent(new CustomEvent('saferoute-shelters-updated', { detail: items }));
+  } catch (e) {}
+}
+
+function getStoredHazards(): HazardReport[] {
+  try {
+    const raw = localStorage.getItem(HAZARDS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {}
+  try {
+    localStorage.setItem(HAZARDS_STORAGE_KEY, JSON.stringify(FALLBACK_HAZARDS));
+  } catch (e) {}
+  return FALLBACK_HAZARDS;
+}
+
+function saveStoredHazards(items: HazardReport[]) {
+  try {
+    localStorage.setItem(HAZARDS_STORAGE_KEY, JSON.stringify(items));
+    window.dispatchEvent(new CustomEvent('saferoute-hazards-updated', { detail: items }));
+  } catch (e) {}
+}
+
+function getStoredIncidents(): Incident[] {
+  try {
+    const raw = localStorage.getItem(SOS_INCIDENTS_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+  } catch (e) {}
+  try {
+    localStorage.setItem(SOS_INCIDENTS_STORAGE_KEY, JSON.stringify(INITIAL_DEMO_INCIDENTS));
+  } catch (e) {}
+  return INITIAL_DEMO_INCIDENTS;
+}
+
+function saveStoredIncidents(items: Incident[]) {
+  try {
+    localStorage.setItem(SOS_INCIDENTS_STORAGE_KEY, JSON.stringify(items));
+    window.dispatchEvent(new CustomEvent('saferoute-sos-updated', { detail: items }));
+  } catch (e) {}
+}
+
 export const api = {
   // Routes & Risk
   async assessRoute(
@@ -376,41 +516,51 @@ export const api = {
   },
 
   async getAlerts(lat = 13.0827, lng = 80.2707): Promise<OfficialAlert[]> {
-    try {
-      const res = await fetch(`${API_BASE}/alerts/active?lat=${lat}&lng=${lng}`);
-      if (res.ok) return await res.json();
-    } catch {
-      // fallback
-    }
-    return FALLBACK_ALERTS;
+    return getStoredAlerts();
+  },
+
+  async broadcastAlert(alert: Partial<OfficialAlert>): Promise<OfficialAlert> {
+    const newAlert: OfficialAlert = {
+      id: `alt-${Date.now()}`,
+      headline: alert.headline || 'IMD / TN-SDMA Cyclone Advisory',
+      headline_ta: alert.headline_ta || 'புயல் எச்சரிக்கை அறிவிப்பு',
+      description: alert.description || 'Severe weather alert issued for coastal and inland sectors.',
+      description_ta: alert.description_ta || 'கடலோர மற்றும் உள் மாவட்டங்களுக்கான வானிலை எச்சரிக்கை.',
+      severity: (alert.severity as any) || 'EXTREME',
+      urgency: (alert.urgency as any) || 'IMMEDIATE',
+      area_desc: alert.area_desc || 'Greater Chennai & Coastal Districts',
+      effective: new Date().toISOString(),
+      expires: new Date(Date.now() + 86400000).toISOString(),
+      sender_name: 'Tamil Nadu Disaster Management Authority',
+      source: 'ADMIN_CONSOLE',
+      instruction: alert.instruction || 'Follow evacuation orders and avoid flooded corridors.',
+      instruction_ta: alert.instruction_ta || 'தாழ்வான பகுதிகளைத் தவிர்க்கவும்.',
+      is_live: true,
+    };
+    const current = getStoredAlerts();
+    const updated = [newAlert, ...current];
+    saveStoredAlerts(updated);
+    return newAlert;
+  },
+
+  async deleteAlert(alertId: string): Promise<void> {
+    const current = getStoredAlerts().filter(a => a.id !== alertId);
+    saveStoredAlerts(current);
+  },
+
+  async toggleAlertActive(alertId: string, isLive: boolean): Promise<void> {
+    const current = getStoredAlerts().map(a => a.id === alertId ? { ...a, is_live: isLive } : a);
+    saveStoredAlerts(current);
   },
 
   // Hazards
   async getHazards(status?: string, isSimulated?: boolean): Promise<{ items: HazardReport[]; total: number }> {
-    try {
-      const params = new URLSearchParams();
-      if (status) params.append('status', status);
-      if (isSimulated !== undefined) params.append('is_simulated', String(isSimulated));
-      params.append('page_size', '100');
-      const res = await fetch(`${API_BASE}/hazards?${params.toString()}`);
-      if (res.ok) return await res.json();
-    } catch {
-      // fallback
-    }
-    return { items: FALLBACK_HAZARDS, total: FALLBACK_HAZARDS.length };
+    const all = getStoredHazards();
+    const filtered = status ? all.filter(h => h.status === status) : all;
+    return { items: filtered, total: filtered.length };
   },
 
   async reportHazard(hazard: Partial<HazardReport>): Promise<HazardReport> {
-    try {
-      const res = await fetch(`${API_BASE}/hazards`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify(hazard),
-      });
-      if (res.ok) return await res.json();
-    } catch {
-      // fallback
-    }
     const newHazard: HazardReport = {
       id: `hz-${Date.now()}`,
       hazard_type: hazard.hazard_type || 'FLOODING',
@@ -425,48 +575,67 @@ export const api = {
       source_timestamp: new Date().toISOString(),
       created_at: new Date().toISOString(),
     };
+    const current = getStoredHazards();
+    saveStoredHazards([newHazard, ...current]);
     return newHazard;
   },
 
   async moderateHazard(hazardId: string, action: string, note?: string): Promise<HazardReport> {
-    try {
-      const res = await fetch(`${API_BASE}/reports/${hazardId}/moderate`, {
-        method: 'POST',
-        headers: getHeaders(),
-        body: JSON.stringify({ action, note }),
-      });
-      if (res.ok) return await res.json();
-    } catch {
-      // fallback
-    }
-    return {
-      ...FALLBACK_HAZARDS[0],
-      status: action === 'APPROVE' ? 'VERIFIED' : 'REJECTED',
-    };
+    const current = getStoredHazards();
+    const updated = current.map(h => {
+      if (h.id === hazardId) {
+        return {
+          ...h,
+          status: (action === 'APPROVE' ? 'VERIFIED' : 'REJECTED') as any,
+        };
+      }
+      return h;
+    });
+    saveStoredHazards(updated);
+    return updated.find(h => h.id === hazardId) || updated[0];
+  },
+
+  async deleteHazard(hazardId: string): Promise<void> {
+    const current = getStoredHazards().filter(h => h.id !== hazardId);
+    saveStoredHazards(current);
+  },
+
+  async resetHazards(): Promise<void> {
+    saveStoredHazards(FALLBACK_HAZARDS);
   },
 
   async upvoteHazard(hazardId: string): Promise<HazardReport> {
-    try {
-      const res = await fetch(`${API_BASE}/hazards/${hazardId}/upvote`, {
-        method: 'POST',
-        headers: getHeaders(),
-      });
-      if (res.ok) return await res.json();
-    } catch {
-      // fallback
-    }
-    return { ...FALLBACK_HAZARDS[0], upvotes: FALLBACK_HAZARDS[0].upvotes + 1 };
+    const current = getStoredHazards();
+    const updated = current.map(h => h.id === hazardId ? { ...h, upvotes: h.upvotes + 1 } : h);
+    saveStoredHazards(updated);
+    return updated.find(h => h.id === hazardId) || updated[0];
   },
 
   // Shelters
   async getShelters(lat = 13.0827, lng = 80.2707): Promise<Shelter[]> {
-    try {
-      const res = await fetch(`${API_BASE}/shelters?lat=${lat}&lng=${lng}`);
-      if (res.ok) return await res.json();
-    } catch {
-      // fallback
-    }
-    return FALLBACK_SHELTERS;
+    return getStoredShelters();
+  },
+
+  async updateShelter(shelterId: string, patch: Partial<Shelter>): Promise<Shelter> {
+    const current = getStoredShelters();
+    const updated = current.map(s => {
+      if (s.id === shelterId) {
+        const next = { ...s, ...patch };
+        if (patch.current_occupancy !== undefined || patch.capacity !== undefined) {
+          const cap = next.capacity || 1;
+          const occ = next.current_occupancy || 0;
+          next.occupancy_percentage = Math.min(100, Math.round((occ / cap) * 1000) / 10);
+        }
+        return next;
+      }
+      return s;
+    });
+    saveStoredShelters(updated);
+    return updated.find(s => s.id === shelterId) || updated[0];
+  },
+
+  async resetShelters(): Promise<void> {
+    saveStoredShelters(FALLBACK_SHELTERS);
   },
 
   // Incidents & SOS
@@ -486,18 +655,24 @@ export const api = {
         headers: getHeaders(),
         body: JSON.stringify(incidentData),
       });
-      if (res.ok) return await res.json();
+      if (res.ok) {
+        const liveInc = await res.json();
+        const currentList = getStoredIncidents();
+        saveStoredIncidents([liveInc, ...currentList.filter(i => i.id !== liveInc.id)]);
+        return liveInc;
+      }
     } catch {
       // fallback
     }
+
     const refCode = `SOS-${Math.floor(1000 + Math.random() * 9000)}`;
-    return {
+    const newInc: Incident = {
       id: `inc-${Date.now()}`,
       reference_code: refCode,
       user_id: 'citizen-sos',
       latitude: incidentData.latitude,
       longitude: incidentData.longitude,
-      severity: incidentData.severity || 'CRITICAL',
+      severity: (incidentData.severity as any) || 'CRITICAL',
       status: 'SUBMITTED',
       contact_phone: incidentData.contact_phone || '108',
       description: incidentData.description || 'Emergency SOS dispatched to State Emergency Operations Centre.',
@@ -535,6 +710,10 @@ export const api = {
         },
       ],
     };
+
+    const currentList = getStoredIncidents();
+    saveStoredIncidents([newInc, ...currentList]);
+    return newInc;
   },
 
   async getIncidentByReference(referenceCode: string): Promise<Incident> {
@@ -546,6 +725,10 @@ export const api = {
     } catch {
       // fallback
     }
+    const items = getStoredIncidents();
+    const found = items.find(i => i.reference_code === referenceCode);
+    if (found) return found;
+
     return {
       id: 'inc-demo',
       reference_code: referenceCode,
@@ -567,58 +750,11 @@ export const api = {
   },
 
   async getResponderQueue(status?: string): Promise<{ items: Incident[]; total: number }> {
-    try {
-      const params = new URLSearchParams();
-      if (status) params.append('status', status);
-      const res = await fetch(`${API_BASE}/responders/queue?${params.toString()}`, {
-        headers: getHeaders(),
-      });
-      if (res.ok) return await res.json();
-    } catch {
-      // fallback
-    }
+    const items = getStoredIncidents();
+    const filtered = status ? items.filter(i => i.status === status) : items;
     return {
-      items: [
-        {
-          id: 'inc-101',
-          reference_code: 'SOS-8492',
-          user_id: 'usr-1',
-          latitude: 12.9759,
-          longitude: 80.2212,
-          address: 'Velachery Vijaya Nagar Bus Stand',
-          severity: 'CRITICAL',
-          status: 'SUBMITTED',
-          contact_phone: '+91-98401-22345',
-          description: '4 seniors stranded on 1st floor balcony. Flood level touching 4 feet.',
-          person_count: 4,
-          is_simulated: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          events: [],
-          assignments: [],
-          public_updates: [],
-        },
-        {
-          id: 'inc-102',
-          reference_code: 'SOS-3914',
-          user_id: 'usr-2',
-          latitude: 12.9249,
-          longitude: 80.1240,
-          address: 'Tambaram Mudichur Link Road',
-          severity: 'HIGH',
-          status: 'ACKNOWLEDGED',
-          contact_phone: '+91-98402-99881',
-          description: 'Car stalled in moving flood current. 2 adults inside.',
-          person_count: 2,
-          is_simulated: false,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          events: [],
-          assignments: [],
-          public_updates: [],
-        },
-      ],
-      total: 2,
+      items: filtered,
+      total: items.length,
     };
   },
 
@@ -638,22 +774,50 @@ export const api = {
     } catch {
       // fallback
     }
-    return {
-      id: incidentId,
-      reference_code: 'SOS-8492',
-      user_id: 'usr-1',
-      latitude: 12.9759,
-      longitude: 80.2212,
-      severity: 'CRITICAL',
-      status: toStatus as any,
-      person_count: 4,
-      is_simulated: false,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      events: [],
-      assignments: [],
-      public_updates: [],
-    };
+
+    const items = getStoredIncidents();
+    const updated = items.map((item) => {
+      if (item.id === incidentId) {
+        return {
+          ...item,
+          status: toStatus as any,
+          updated_at: new Date().toISOString(),
+          events: [
+            ...(item.events || []),
+            {
+              id: `ev-${Date.now()}`,
+              incident_id: incidentId,
+              actor_id: 'RESPONDER',
+              to_status: toStatus,
+              note: note || `Status changed to ${toStatus}`,
+              is_internal: isInternal,
+              created_at: new Date().toISOString(),
+            },
+          ],
+        };
+      }
+      return item;
+    });
+    saveStoredIncidents(updated);
+    const target = updated.find((i) => i.id === incidentId) || updated[0];
+    return target;
+  },
+
+  async deleteIncident(incidentId: string): Promise<void> {
+    const items = getStoredIncidents().filter((i) => i.id !== incidentId);
+    saveStoredIncidents(items);
+  },
+
+  async updateIncident(incidentId: string, patch: Partial<Incident>): Promise<Incident> {
+    const items = getStoredIncidents().map((i) =>
+      i.id === incidentId ? { ...i, ...patch, updated_at: new Date().toISOString() } : i
+    );
+    saveStoredIncidents(items);
+    return items.find((i) => i.id === incidentId)!;
+  },
+
+  async resetIncidents(): Promise<void> {
+    saveStoredIncidents(INITIAL_DEMO_INCIDENTS);
   },
 
   // Simulations

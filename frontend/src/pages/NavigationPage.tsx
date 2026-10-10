@@ -21,7 +21,9 @@ import {
   Crosshair,
   Maximize2,
   RefreshCw,
+  PhoneCall,
 } from 'lucide-react';
+import { EmergencyContactsModal } from '../components/EmergencyContactsModal';
 
 interface NavigationPageProps {
   isSimulated?: boolean;
@@ -58,6 +60,10 @@ export const NavigationPage: React.FC<NavigationPageProps> = ({ isSimulated = fa
     zoom: 12,
   });
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
+
+  const [activeUser, setActiveUser] = useState<{ name: string; destName?: string } | null>(null);
+  const [is3DNavMode, setIs3DNavMode] = useState<boolean>(false);
+  const [showContactsModal, setShowContactsModal] = useState<boolean>(false);
 
   // Initial Data Fetch
   useEffect(() => {
@@ -102,52 +108,86 @@ export const NavigationPage: React.FC<NavigationPageProps> = ({ isSimulated = fa
     }
   };
 
-  // Run initial route assessment automatically on load
+  // Run initial route assessment automatically on load, reading from sessionStorage if available
   useEffect(() => {
-    handleAssessRoute(origin.lat, origin.lng, destination.lat, destination.lng);
+    let oLat = origin.lat;
+    let oLng = origin.lng;
+    let dLat = destination.lat;
+    let dLng = destination.lng;
+
+    const savedUser = sessionStorage.getItem('saferoute_user');
+    if (savedUser) {
+      try {
+        const parsed = JSON.parse(savedUser);
+        if (parsed.origin?.lat && parsed.origin?.lng) {
+          oLat = parsed.origin.lat;
+          oLng = parsed.origin.lng;
+          setOrigin({ lat: oLat, lng: oLng });
+        }
+        if (parsed.destination?.lat && parsed.destination?.lng) {
+          dLat = parsed.destination.lat;
+          dLng = parsed.destination.lng;
+          setDestination({ lat: dLat, lng: dLng });
+        }
+        setActiveUser({
+          name: parsed.name || 'Traveler',
+          destName: parsed.destination?.name || 'Selected Destination',
+        });
+      } catch (err) {
+        console.warn('Failed to parse saferoute_user session:', err);
+      }
+    }
+
+    handleAssessRoute(oLat, oLng, dLat, dLng);
   }, []);
+
+  const handleStart3DMode = () => {
+    setIs3DNavMode(true);
+    // Smoothly flyTo origin at close zoom
+    setCenterLocation({
+      lat: origin.lat,
+      lng: origin.lng,
+      zoom: 16,
+    });
+  };
 
   return (
     <div className="relative w-full h-[calc(100vh-53px)] overflow-hidden flex flex-col md:flex-row select-none">
-      {/* Left Route Planning Workspace Panel */}
+      {/* Left Route Planning Workspace Panel (Glassy Glassmorphism) */}
       <div
         className={`z-20 transition-all duration-300 shrink-0 h-full overflow-hidden flex flex-col ${
-          isPanelCollapsed ? 'w-0 md:w-12' : 'w-full md:w-[420px] lg:w-[460px]'
-        } ${
-          theme === 'dark'
-            ? 'bg-[#0d1424] border-r border-slate-800 text-slate-100 shadow-2xl'
-            : 'bg-white/95 backdrop-blur-md border-r border-slate-200 text-slate-800 shadow-lg'
-        }`}
+          isPanelCollapsed ? 'w-0 md:w-12' : 'w-full md:w-[430px] lg:w-[480px]'
+        } bg-white/85 backdrop-blur-xl border-r border-white/90 text-slate-900 shadow-xl`}
       >
         {isPanelCollapsed ? (
           <div className="h-full flex flex-col items-center justify-between py-4">
             <button
               onClick={() => setIsPanelCollapsed(false)}
-              className="p-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white shadow-md transition cursor-pointer"
+              className="p-2.5 rounded-2xl bg-blue-900 hover:bg-blue-800 text-white shadow-md transition cursor-pointer"
               title="Expand Route Planner"
             >
-              <Navigation className="w-5 h-5" />
+              <Navigation className="w-5 h-5 text-blue-200" />
             </button>
           </div>
         ) : (
           <div className="h-full flex flex-col">
-            <div className={`p-4 border-b flex items-center justify-between ${
-              theme === 'dark' ? 'border-slate-800' : 'border-slate-200/80'
-            }`}>
-              <div className="flex items-center gap-2">
-                <Navigation className="w-5 h-5 text-blue-500" />
+            <div className="p-4 border-b border-slate-200/80 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-900">
+                  <Navigation className="w-4 h-4" />
+                </div>
                 <div>
-                  <h2 className="font-bold text-sm">Safe Route Intelligence</h2>
-                  <p className="text-[11px] text-slate-400">
-                    Deterministic corridor safety evaluation
-                  </p>
+                  <h2 className="font-black text-sm text-black">Navigate</h2>
+                  {activeUser && (
+                    <span className="text-[10px] text-black font-semibold block">
+                      {activeUser.name} → {activeUser.destName}
+                    </span>
+                  )}
                 </div>
               </div>
               <button
                 onClick={() => setIsPanelCollapsed(true)}
-                className={`p-1.5 rounded-lg transition ${
-                  theme === 'dark' ? 'hover:bg-slate-800 text-slate-400' : 'hover:bg-slate-100 text-slate-500'
-                }`}
+                className="p-1.5 rounded-xl transition hover:bg-slate-100 text-slate-600 cursor-pointer"
                 title="Collapse panel to maximize map"
               >
                 <Maximize2 className="w-4 h-4" />
@@ -163,7 +203,19 @@ export const NavigationPage: React.FC<NavigationPageProps> = ({ isSimulated = fa
                 isLoading={isAssessing}
                 currentOrigin={origin}
                 currentDestination={destination}
+                onStart3DNav={handleStart3DMode}
+                is3DNavigating={is3DNavMode}
               />
+
+              <div className="pt-3 border-t border-slate-200 mt-3">
+                <button
+                  onClick={() => setShowContactsModal(true)}
+                  className="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-black border border-slate-300 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer"
+                >
+                  <PhoneCall className="w-3.5 h-3.5" />
+                  <span>Emergency Contacts</span>
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -184,8 +236,16 @@ export const NavigationPage: React.FC<NavigationPageProps> = ({ isSimulated = fa
           onSetOrigin={(lat, lng) => setOrigin({ lat, lng })}
           onSetDestination={(lat, lng) => setDestination({ lat, lng })}
           isSimulated={isSimulated}
+          is3DMode={is3DNavMode}
+          onToggle3DMode={setIs3DNavMode}
         />
       </div>
+
+      {/* Emergency Contacts Modal */}
+      <EmergencyContactsModal
+        isOpen={showContactsModal}
+        onClose={() => setShowContactsModal(false)}
+      />
     </div>
   );
 };

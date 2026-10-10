@@ -1,377 +1,301 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Navigation,
-  AlertTriangle,
-  Radio,
-  Building2,
-  CloudSun,
-  ShieldAlert,
-  Activity,
-  CheckCircle2,
-  Clock,
-  ArrowRight,
-  TrendingUp,
   MapPin,
+  Navigation,
+  ArrowRight,
   RefreshCw,
-  Server,
-  Zap,
+  PhoneCall,
+  Car,
+  CloudSun,
+  Shield,
+  Wind,
 } from 'lucide-react';
-import { useI18n } from '../context/I18nContext';
 import { useTheme } from '../context/ThemeContext';
-import { api } from '../services/api';
-import { HazardReport, Shelter, OfficialAlert, WeatherData } from '../types';
+import { EmergencyContactsModal } from '../components/EmergencyContactsModal';
+import { CycloneSimulatorModal } from '../components/CycloneSimulatorModal';
 
 interface OverviewPageProps {
-  onOpenSos: () => void;
-  onOpenReportHazard: () => void;
-  onOpenSimulation: () => void;
+  onOpenSos?: () => void;
+  onOpenReportHazard?: () => void;
+  onOpenSimulation?: () => void;
   isSimulated?: boolean;
 }
 
-export const OverviewPage: React.FC<OverviewPageProps> = ({
-  onOpenSos,
-  onOpenReportHazard,
-  onOpenSimulation,
-  isSimulated = false,
-}) => {
+export const OverviewPage: React.FC<OverviewPageProps> = () => {
   const navigate = useNavigate();
-  const { language } = useI18n();
   const { theme } = useTheme();
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [hazards, setHazards] = useState<HazardReport[]>([]);
-  const [shelters, setShelters] = useState<Shelter[]>([]);
-  const [alerts, setAlerts] = useState<OfficialAlert[]>([]);
-  const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [systemHealth, setSystemHealth] = useState<any>(null);
+  const [lastUpdated, setLastUpdated] = useState<string>('Just now');
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
+  const [showContactsModal, setShowContactsModal] = useState<boolean>(false);
+  const [showCycloneModal, setShowCycloneModal] = useState<boolean>(false);
 
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-      const [hRes, sList, aList, wData, hData] = await Promise.all([
-        api.getHazards(undefined, isSimulated),
-        api.getShelters(13.0827, 80.2707),
-        api.getAlerts(13.0827, 80.2707),
-        api.getWeather(13.0827, 80.2707),
-        api.getHealthReadiness(),
-      ]);
-      setHazards(hRes?.items || []);
-      setShelters(sList || []);
-      setAlerts(aList || []);
-      setWeather(wData || null);
-      setSystemHealth(hData || null);
-    } catch (e) {
-      console.error('Error fetching dashboard overview data:', e);
-    } finally {
-      setIsLoading(false);
-    }
+  const currentArea = {
+    name: 'Mevalurkuppam',
+    district: 'Sriperumbudur, Tamil Nadu',
+    coords: '13.0189° N, 80.0102° E',
+    status: 'Safe',
+    details: 'Clear roads • No flood risk • Normal traffic flow',
   };
 
-  useEffect(() => {
-    fetchData();
-  }, [isSimulated]);
+  const weatherOverview = {
+    today: {
+      date: 'Today',
+      temp: '32°C',
+      feels: '38°C',
+      condition: 'Partly Cloudy',
+      rain: '1%',
+      humidity: '63%',
+      wind: '19 km/h',
+    },
+    tomorrow: {
+      date: 'Tomorrow',
+      temp: '34°C / 26°C',
+      feels: '41°C',
+      condition: 'Rain & Heat',
+      rain: '70%',
+      timing: 'From 4 PM',
+    },
+  };
 
-  // Derived statistics from real backend datasets
-  const verifiedHazardsCount = hazards.filter((h) => h.status === 'VERIFIED').length;
-  const criticalHazardsCount = hazards.filter((h) => h.severity === 'CRITICAL' || h.hazard_type.toLowerCase().includes('closure')).length;
-  const totalShelterCapacity = shelters.reduce((acc, s) => acc + (s.capacity || 0), 0);
-  const totalShelterOccupancy = shelters.reduce((acc, s) => acc + (s.current_occupancy || 0), 0);
-  const availableShelterBeds = totalShelterCapacity - totalShelterOccupancy;
+  const nearbyIncidents = [
+    {
+      id: 'inc-1',
+      title: 'NH48 Sriperumbudur Highway',
+      desc: 'Two-wheeler collision • Single lane slowdown',
+      distance: '1.8 km',
+      severity: 'Minor Delay',
+      source: 'Twitter Traffic Feed',
+    },
+    {
+      id: 'inc-2',
+      title: 'Mevalurkuppam Underpass',
+      desc: 'Water accumulation • Slow passage',
+      distance: '3.2 km',
+      severity: 'Caution',
+      source: 'Community Report',
+    },
+    {
+      id: 'inc-3',
+      title: 'Poonamallee High Road',
+      desc: 'Stalled vehicle • Right lane blocked',
+      distance: '4.7 km',
+      severity: 'Moderate',
+      source: 'News API',
+    },
+    {
+      id: 'inc-4',
+      title: 'Chembarambakkam Stretch',
+      desc: 'Culvert maintenance • Diversion in place',
+      distance: '6.1 km',
+      severity: 'Diversion',
+      source: 'Official Bulletin',
+    },
+  ];
 
-  const cardBg = theme === 'dark'
-    ? 'bg-slate-900/80 border-slate-800 text-slate-100'
-    : 'bg-white/90 border-slate-200 text-slate-800 shadow-sm';
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    setTimeout(() => {
+      setLastUpdated('Just now');
+      setIsRefreshing(false);
+    }, 600);
+  };
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Top Welcome & Quick Actions Banner */}
-      <div className={`p-6 rounded-3xl border flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative overflow-hidden ${
-        theme === 'dark'
-          ? 'bg-gradient-to-br from-slate-900 via-slate-900 to-blue-950 border-slate-800 text-white'
-          : 'bg-gradient-to-br from-blue-50/80 via-white to-slate-50 border-blue-200/60 text-slate-900 shadow-sm'
-      }`}>
-        <div className="space-y-1.5 z-10">
+    <div className="min-h-full text-slate-900 p-4 md:p-8 max-w-5xl mx-auto space-y-6 font-sans">
+      {/* ── TOP HEADER ── */}
+      <header className="border-b border-slate-200/80 pb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
           <div className="flex items-center gap-2">
-            <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-500 border border-blue-500/30">
-              TAMIL NADU DISASTER MONITORING CELL
-            </span>
-            {isSimulated && (
-              <span className="text-xs font-mono font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-500 border border-amber-500/30">
-                ACTIVE DRILL SCENARIO
+            <span className="w-2.5 h-2.5 rounded-full bg-blue-900 inline-block" />
+            <h1 className="text-2xl md:text-3xl font-black text-black tracking-tight">
+              Overview
+            </h1>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 shrink-0">
+          <button
+            onClick={() => setShowCycloneModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-black hover:bg-slate-800 text-white text-xs font-bold transition cursor-pointer shadow-sm"
+          >
+            <Wind className="w-3.5 h-3.5" />
+            <span>Cyclone Simulator</span>
+          </button>
+          <button
+            onClick={handleRefresh}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-300 hover:border-black text-black text-xs font-bold transition cursor-pointer bg-white/80 shadow-2xs"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />
+            <span>{lastUpdated}</span>
+          </button>
+          <button
+            onClick={() => navigate('/app/navigation')}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-900 hover:bg-blue-800 text-white text-xs font-bold transition shadow-sm cursor-pointer"
+          >
+            <Navigation className="w-3.5 h-3.5" />
+            <span>Navigate</span>
+          </button>
+        </div>
+      </header>
+
+      {/* ── AREA STATUS ── */}
+      <section className="bg-white/85 backdrop-blur-xl border border-white/90 rounded-3xl p-5 shadow-sm space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-xl bg-slate-100 text-black flex items-center justify-center">
+              <MapPin className="w-4 h-4" />
+            </div>
+            <h2 className="text-base font-black text-black">Area Status</h2>
+          </div>
+          <span className="px-3 py-0.5 rounded-full bg-black text-white text-xs font-bold">
+            {currentArea.status}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+          <div>
+            <div className="text-sm font-bold text-black">{currentArea.name}</div>
+            <div className="text-xs text-slate-700">{currentArea.district}</div>
+            <div className="text-[11px] text-slate-500 font-mono mt-0.5">{currentArea.coords}</div>
+          </div>
+
+          <div className="md:col-span-2 border-t md:border-t-0 md:border-l border-slate-200 md:pl-5 pt-2 md:pt-0">
+            <div className="text-xs text-slate-500 font-bold uppercase tracking-wider mb-0.5">Condition</div>
+            <div className="text-xs font-semibold text-slate-900">
+              {currentArea.details}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── WEATHER ── */}
+      <section className="space-y-3">
+        <h2 className="text-base font-black text-black">Weather</h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Today */}
+          <div className="bg-white/85 backdrop-blur-xl border border-white/90 rounded-3xl p-5 space-y-3 shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <span className="text-xs font-black text-black">{weatherOverview.today.date}</span>
+              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-black text-[11px] font-bold">
+                Rain: {weatherOverview.today.rain}
               </span>
-            )}
-          </div>
-          <h2 className="text-xl md:text-2xl font-black tracking-tight">
-            SafeRoute Command & Safety Intelligence
-          </h2>
-          <p className="text-xs md:text-sm text-slate-400 max-w-2xl leading-relaxed">
-            Real-time multi-corridor route risk assessment, Open-Meteo precipitation tracking, and verified citizen hazard telemetry for Chennai and Tamil Nadu coastal districts.
-          </p>
-        </div>
+            </div>
 
-        {/* Quick Action Buttons */}
-        <div className="flex flex-wrap items-center gap-2.5 z-10 shrink-0">
-          <button
-            onClick={() => navigate('/navigation')}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold shadow-md shadow-blue-500/20 transition cursor-pointer"
-          >
-            <Navigation className="w-4 h-4" />
-            <span>Plan Safe Route</span>
-          </button>
-          <button
-            onClick={onOpenReportHazard}
-            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl border text-xs font-bold transition cursor-pointer ${
-              theme === 'dark'
-                ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
-                : 'bg-white hover:bg-slate-50 border-slate-300 text-slate-700'
-            }`}
-          >
-            <AlertTriangle className="w-4 h-4 text-amber-500" />
-            <span>Report Hazard</span>
-          </button>
-          <button
-            onClick={onOpenSos}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold shadow-md shadow-rose-500/20 transition cursor-pointer"
-          >
-            <Radio className="w-4 h-4 animate-pulse" />
-            <span>Emergency SOS</span>
-          </button>
-          <button
-            onClick={fetchData}
-            className={`p-2.5 rounded-2xl border transition cursor-pointer ${
-              theme === 'dark'
-                ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-300'
-                : 'bg-white hover:bg-slate-50 border-slate-300 text-slate-600'
-            }`}
-            title="Refresh telemetry"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-          </button>
-        </div>
-      </div>
-
-      {/* KPI Cards Grid (Real Verified Values) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Verified Road Hazards */}
-        <div className={`p-4 rounded-2xl border transition hover:border-blue-500/40 ${cardBg}`}>
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-semibold">Active Road Hazards</span>
-            <AlertTriangle className="w-4 h-4 text-amber-500" />
-          </div>
-          <div className="text-2xl font-black">
-            {isLoading ? '...' : hazards.length}
-          </div>
-          <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-2">
-            <span className="text-amber-500 font-bold">{verifiedHazardsCount} Verified</span>
-            <span>•</span>
-            <span className="text-rose-500 font-bold">{criticalHazardsCount} Severe</span>
-          </div>
-        </div>
-
-        {/* Card 2: Relief Shelters Availability */}
-        <div className={`p-4 rounded-2xl border transition hover:border-blue-500/40 ${cardBg}`}>
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-semibold">Relief Shelters</span>
-            <Building2 className="w-4 h-4 text-emerald-500" />
-          </div>
-          <div className="text-2xl font-black">
-            {isLoading ? '...' : shelters.length}
-          </div>
-          <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-2">
-            <span className="text-emerald-500 font-bold">{availableShelterBeds} Beds Vacant</span>
-            <span>•</span>
-            <span>{totalShelterCapacity} Total Cap</span>
-          </div>
-        </div>
-
-        {/* Card 3: Live Meteorological Reading */}
-        <div className={`p-4 rounded-2xl border transition hover:border-blue-500/40 ${cardBg}`}>
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-semibold">Live Meteorology (Chennai)</span>
-            <CloudSun className="w-4 h-4 text-blue-500" />
-          </div>
-          <div className="text-2xl font-black">
-            {isLoading || !weather ? '...' : `${weather.current.temperature_c}°C`}
-          </div>
-          <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-2">
-            <span className="text-blue-400 font-bold">{weather?.current.precipitation_mm ?? 0} mm/h Rain</span>
-            <span>•</span>
-            <span>{weather?.current.wind_speed_kmh ?? 0} km/h Wind</span>
-          </div>
-        </div>
-
-        {/* Card 4: Official Alerts & Engine Status */}
-        <div className={`p-4 rounded-2xl border transition hover:border-blue-500/40 ${cardBg}`}>
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-semibold">Official Alerts (CAP)</span>
-            <ShieldAlert className="w-4 h-4 text-rose-500" />
-          </div>
-          <div className="text-2xl font-black">
-            {isLoading ? '...' : alerts.length}
-          </div>
-          <div className="flex items-center gap-2 text-[11px] text-slate-400 mt-2">
-            <span className="text-emerald-400 font-mono font-bold">Engine v2.4.0</span>
-            <span>•</span>
-            <span className="font-mono">{systemHealth?.database?.status ?? 'HEALTHY'}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Main Content Grid: Active Alerts & Recent Incident Feed */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Recent Verified Hazards Feed */}
-        <div className={`lg:col-span-2 p-5 rounded-3xl border space-y-4 ${cardBg}`}>
-          <div className="flex items-center justify-between border-b pb-3 border-slate-700/40">
             <div>
-              <h3 className="font-bold text-sm md:text-base">Recent Field Hazards & Road Blocks</h3>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Real community reports and municipal flood telemetry along transport corridors
-              </p>
+              <div className="text-3xl font-black text-black mb-0.5">
+                {weatherOverview.today.temp}
+              </div>
+              <div className="text-xs font-bold text-slate-800">
+                {weatherOverview.today.condition} • Feels {weatherOverview.today.feels}
+              </div>
             </div>
-            <button
-              onClick={() => navigate('/incidents')}
-              className="text-xs font-bold text-blue-500 hover:text-blue-400 flex items-center gap-1 cursor-pointer"
-            >
-              <span>View All</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
+
+            <div className="grid grid-cols-2 gap-2 text-xs text-slate-900 border-t border-slate-100 pt-2 font-medium">
+              <div>
+                <span className="text-slate-500 block text-[11px]">Wind</span>
+                <span className="font-bold text-black">{weatherOverview.today.wind}</span>
+              </div>
+              <div>
+                <span className="text-slate-500 block text-[11px]">Humidity</span>
+                <span className="font-bold text-black">{weatherOverview.today.humidity}</span>
+              </div>
+            </div>
           </div>
 
-          {hazards.length === 0 ? (
-            <div className="py-12 text-center text-slate-400 text-xs">
-              No active hazard reports filed. All monitored routes clear.
-            </div>
-          ) : (
-            <div className="space-y-2.5">
-              {hazards.slice(0, 5).map((h) => (
-                <div
-                  key={h.id}
-                  className={`p-3.5 rounded-2xl border flex items-start justify-between gap-3 transition ${
-                    theme === 'dark'
-                      ? 'bg-slate-800/50 border-slate-700/60 hover:border-slate-600'
-                      : 'bg-slate-50 border-slate-200 hover:border-slate-300'
-                  }`}
-                >
-                  <div className="space-y-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        h.severity === 'CRITICAL'
-                          ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
-                          : h.severity === 'HIGH'
-                          ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-                          : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                      }`}>
-                        {h.severity}
-                      </span>
-                      <span className="font-bold text-xs truncate uppercase tracking-tight">
-                        {h.hazard_type.replace('_', ' ')}
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-mono">
-                        {h.status}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-300 line-clamp-2 leading-relaxed">
-                      {h.description}
-                    </p>
-                    <div className="text-[10px] text-slate-400 flex items-center gap-2 pt-0.5">
-                      <MapPin className="w-3 h-3 text-slate-500" />
-                      <span>{h.latitude.toFixed(4)}, {h.longitude.toFixed(4)}</span>
-                      <span>•</span>
-                      <span>{new Date(h.source_timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                    </div>
-                  </div>
-
-                  <button
-                    onClick={() => navigate('/navigation')}
-                    className="p-2 rounded-xl bg-blue-500/10 hover:bg-blue-500/20 text-blue-400 text-xs font-semibold shrink-0 transition cursor-pointer"
-                    title="View corridor on map"
-                  >
-                    <Navigation className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Right Col: Live Official Alerts & Quick Relief Centers */}
-        <div className="space-y-6">
-          {/* Official Alerts Card */}
-          <div className={`p-5 rounded-3xl border space-y-3 ${cardBg}`}>
-            <div className="flex items-center justify-between border-b pb-2 border-slate-700/40">
-              <h3 className="font-bold text-sm">Disaster Bulletins</h3>
-              <span className="text-[10px] font-mono font-bold text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded-full border border-rose-500/30">
-                {alerts.length} ACTIVE
+          {/* Tomorrow */}
+          <div className="bg-white/85 backdrop-blur-xl border border-white/90 rounded-3xl p-5 space-y-3 shadow-sm">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+              <span className="text-xs font-black text-black">{weatherOverview.tomorrow.date}</span>
+              <span className="px-2 py-0.5 rounded-full bg-black text-white text-[11px] font-bold">
+                Rain: {weatherOverview.tomorrow.rain}
               </span>
             </div>
 
-            {alerts.length === 0 ? (
-              <div className="py-6 text-center text-slate-400 text-xs">
-                No active state disaster bulletins at this time.
+            <div>
+              <div className="text-3xl font-black text-black mb-0.5">
+                {weatherOverview.tomorrow.temp}
               </div>
-            ) : (
-              <div className="space-y-2.5">
-                {alerts.slice(0, 2).map((alt) => (
-                  <div
-                    key={alt.id}
-                    className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/30 text-rose-200 text-xs space-y-1"
-                  >
-                    <div className="font-bold text-rose-300 flex items-center gap-1.5">
-                      <ShieldAlert className="w-3.5 h-3.5 shrink-0" />
-                      <span>{alt.headline}</span>
-                    </div>
-                    <p className="text-[11px] text-slate-300 leading-relaxed">
-                      {alt.description}
-                    </p>
-                    <div className="text-[10px] text-slate-400 pt-1 font-mono">
-                      Source: {alt.sender_name || 'TNSDMA Sachet'}
-                    </div>
-                  </div>
-                ))}
+              <div className="text-xs font-bold text-slate-800">
+                {weatherOverview.tomorrow.condition} • Feels {weatherOverview.tomorrow.feels}
               </div>
-            )}
-          </div>
-
-          {/* Quick Relief Center Highlights */}
-          <div className={`p-5 rounded-3xl border space-y-3 ${cardBg}`}>
-            <div className="flex items-center justify-between border-b pb-2 border-slate-700/40">
-              <h3 className="font-bold text-sm">Designated Safe Shelters</h3>
-              <button
-                onClick={() => navigate('/relief-centers')}
-                className="text-xs font-bold text-blue-500 hover:text-blue-400 flex items-center gap-1 cursor-pointer"
-              >
-                <span>View All</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
             </div>
 
-            <div className="space-y-2">
-              {shelters.slice(0, 3).map((s) => (
-                <div
-                  key={s.id}
-                  className={`p-3 rounded-2xl border flex items-center justify-between gap-2 ${
-                    theme === 'dark' ? 'bg-slate-800/40 border-slate-700/50' : 'bg-slate-50 border-slate-200'
-                  }`}
-                >
-                  <div className="min-w-0">
-                    <div className="font-bold text-xs truncate">{s.name}</div>
-                    <div className="text-[10px] text-slate-400 truncate">{s.district}</div>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-xs font-bold text-emerald-400">
-                      {s.capacity - s.current_occupancy} beds
-                    </div>
-                    <div className="text-[9px] text-slate-400">
-                      {s.occupancy_percentage}% full
-                    </div>
-                  </div>
-                </div>
-              ))}
+            <div className="grid grid-cols-2 gap-2 text-xs text-slate-900 border-t border-slate-100 pt-2 font-medium">
+              <div>
+                <span className="text-slate-500 block text-[11px]">Rain Timing</span>
+                <span className="font-bold text-black">{weatherOverview.tomorrow.timing}</span>
+              </div>
+              <div>
+                <span className="text-slate-500 block text-[11px]">Peak Heat</span>
+                <span className="font-bold text-black">{weatherOverview.tomorrow.feels}</span>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </section>
+
+      {/* ── ROAD INCIDENTS ── */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-black text-black">Road Incidents</h2>
+          <span className="text-xs font-bold text-black bg-slate-100 px-2.5 py-0.5 rounded-full">
+            {nearbyIncidents.length} Reports
+          </span>
+        </div>
+
+        <div className="bg-white/85 backdrop-blur-xl border border-white/90 rounded-3xl divide-y divide-slate-100 overflow-hidden shadow-sm">
+          {nearbyIncidents.map((inc) => (
+            <div key={inc.id} className="p-3.5 hover:bg-slate-50/70 transition flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-xs text-black truncate">{inc.title}</span>
+                  <span className="text-[10px] text-slate-500 font-mono">({inc.distance})</span>
+                </div>
+                <div className="text-xs text-slate-700 mt-0.5">{inc.desc}</div>
+                <div className="text-[10px] text-slate-500 mt-0.5 font-medium">{inc.source}</div>
+              </div>
+
+              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-black border border-slate-200 shrink-0">
+                {inc.severity}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ── BOTTOM ACTIONS: EMERGENCY CONTACTS & NAVIGATE ── */}
+      <footer className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200">
+        <button
+          onClick={() => setShowContactsModal(true)}
+          className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-black hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm"
+        >
+          <PhoneCall className="w-4 h-4" />
+          <span>Emergency Contacts (Police, Fire, Ambulance, Disaster)</span>
+        </button>
+
+        <button
+          onClick={() => navigate('/app/navigation')}
+          className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs flex items-center justify-center gap-2 transition cursor-pointer shadow-sm"
+        >
+          <span>Navigate</span>
+          <ArrowRight className="w-4 h-4" />
+        </button>
+      </footer>
+
+      {/* Emergency Contacts Modal */}
+      <EmergencyContactsModal
+        isOpen={showContactsModal}
+        onClose={() => setShowContactsModal(false)}
+      />
+
+      {/* AI Cyclone Simulator Modal */}
+      <CycloneSimulatorModal
+        isOpen={showCycloneModal}
+        onClose={() => setShowCycloneModal(false)}
+      />
     </div>
   );
 };
