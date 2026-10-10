@@ -106,6 +106,25 @@ body {
   box-shadow: 0 12px 36px -4px rgba(0, 0, 0, 0.5);
 }
 
+/* Zoom Earth Light Theme Frosted Glass */
+.light-glass {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(226, 232, 240, 0.85);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
+  color: #0f172a;
+}
+
+.light-panel {
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(203, 213, 225, 0.85);
+  box-shadow: 0 20px 35px -8px rgba(0, 0, 0, 0.12);
+  color: #0f172a;
+}
+
 .samsung-glass-card {
   background: rgba(15, 23, 42, 0.9);
   backdrop-filter: blur(16px);
