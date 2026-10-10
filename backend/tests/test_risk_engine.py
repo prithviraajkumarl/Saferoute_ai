@@ -183,3 +183,95 @@ def test_risk_engine_1_to_6h_forecast_trend():
     assert results[0].forecast_trend is not None
     assert results[0].forecast_trend.trend_6h == "RISING"
     assert results[0].forecast_trend.projected_max_rain_mm == 35.0
+
+
+def test_risk_engine_heavy_rainfall_exposure():
+    engine = RouteRiskEngine()
+    candidates = [
+        {
+            "index": 0,
+            "name": "Route Inland",
+            "distance_meters": 5000.0,
+            "duration_seconds": 600.0,
+            "coordinates": [[80.20, 13.00], [80.21, 13.01]],
+        }
+    ]
+    # Heavy rainfall 35 mm/h without any road closures
+    results, _ = engine.evaluate_routes(candidates, hazards=[], weather_rain_mm=35.0)
+    assert results[0].risk_score > 20.0
+    assert results[0].risk_category in ["ELEVATED", "HIGH"]
+    assert "35" in results[0].explanation_en
+
+
+def test_risk_engine_conflicting_field_reports():
+    engine = RouteRiskEngine()
+    candidates = [
+        {
+            "index": 0,
+            "name": "Arterial Corridor",
+            "distance_meters": 5000.0,
+            "duration_seconds": 600.0,
+            "coordinates": [[80.20, 13.00], [80.21, 13.01]],
+        }
+    ]
+    # Report 1: Resolved flood
+    h1 = HazardReport(
+        id="h-res",
+        hazard_type="flooding",
+        latitude=13.005,
+        longitude=80.205,
+        severity="SEVERE",
+        status="RESOLVED",
+        source="CITIZEN",
+        source_timestamp=datetime.now(timezone.utc),
+    )
+    # Report 2: Verified active flood at same location
+    h2 = HazardReport(
+        id="h-act",
+        hazard_type="flooding",
+        latitude=13.006,
+        longitude=80.206,
+        severity="CRITICAL",
+        status="VERIFIED",
+        source="OFFICIAL",
+        source_timestamp=datetime.now(timezone.utc),
+    )
+    results, _ = engine.evaluate_routes(candidates, hazards=[h1, h2])
+    assert results[0].data_confidence == "MODERATE"
+    assert "Conflicting field reports" in results[0].uncertainty_note
+
+
+def test_risk_engine_degenerate_geometry_handling():
+    engine = RouteRiskEngine()
+    candidates = [
+        {
+            "index": 0,
+            "name": "Malformed Corridor",
+            "distance_meters": 0.0,
+            "duration_seconds": 0.0,
+            "coordinates": [],
+        }
+    ]
+    results, rec_idx = engine.evaluate_routes(candidates, hazards=[])
+    assert len(results) == 1
+    assert results[0].risk_category == "CRITICAL"
+    assert results[0].has_critical_closure is True
+    assert results[0].data_confidence == "LOW_DATA_UNCERTAINTY"
+
+
+def test_risk_engine_missing_weather_safety_defaults():
+    engine = RouteRiskEngine()
+    candidates = [
+        {
+            "index": 0,
+            "name": "Route Baseline",
+            "distance_meters": 5000.0,
+            "duration_seconds": 600.0,
+            "coordinates": [[80.20, 13.00], [80.21, 13.01]],
+        }
+    ]
+    # None values passed for weather parameters should gracefully degrade
+    results, _ = engine.evaluate_routes(candidates, hazards=[], weather_rain_mm=None, weather_wind_kmh=None)
+    assert len(results) == 1
+    assert results[0].risk_score < 25.0
+

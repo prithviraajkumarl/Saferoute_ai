@@ -89,8 +89,25 @@ class RouteRiskEngine:
         weather_wind_kmh: float = 0.0,
         hourly_forecast: Optional[List[Dict[str, Any]]] = None,
     ) -> Tuple[List[CandidateRoute], int]:
+        weather_rain_mm = float(weather_rain_mm or 0.0)
+        weather_wind_kmh = float(weather_wind_kmh or 0.0)
         evaluated_candidates: List[CandidateRoute] = []
         now = datetime.now(timezone.utc)
+
+        # Check for conflicting evidence among active hazards (e.g., within 800m, one is RESOLVED while another is active/verified)
+        has_conflicting_evidence = False
+        for i in range(len(hazards)):
+            for j in range(i + 1, len(hazards)):
+                h1, h2 = hazards[i], hazards[j]
+                if h1.hazard_type.lower() == h2.hazard_type.lower():
+                    deg_d = math.hypot(h1.latitude - h2.latitude, h1.longitude - h2.longitude)
+                    if deg_d * 111000.0 < 800.0:
+                        if (h1.status == "RESOLVED" and h2.status in ["VERIFIED", "PENDING_VERIFICATION"]) or \
+                           (h2.status == "RESOLVED" and h1.status in ["VERIFIED", "PENDING_VERIFICATION"]):
+                            has_conflicting_evidence = True
+                            break
+            if has_conflicting_evidence:
+                break
 
         # 1. Pre-process hazard points and freshness decay
         hazard_entities = []
@@ -217,7 +234,7 @@ class RouteRiskEngine:
             # 4. Weather & Alert penalties
             weather_penalty = 0.0
             if weather_rain_mm > 15.0:
-                weather_penalty += min(20.0, (weather_rain_mm - 15.0) * 0.8)
+                weather_penalty += min(28.0, (weather_rain_mm - 15.0) * 1.1)
             if weather_wind_kmh > 40.0:
                 weather_penalty += min(15.0, (weather_wind_kmh - 40.0) * 0.5)
 
@@ -250,6 +267,9 @@ class RouteRiskEngine:
             if len(hazards) == 0:
                 data_confidence = "MODERATE"
                 uncertainty_notes.append("No active hazard reports filed in area; missing reports do not imply zero risk.")
+            if has_conflicting_evidence:
+                data_confidence = "MODERATE"
+                uncertainty_notes.append("Conflicting field reports detected in proximity; evaluated conservatively favoring life-safety.")
             if stale_hazard_count > 0:
                 uncertainty_notes.append(f"{stale_hazard_count} nearby hazard report(s) exceed {settings.STALE_HAZARD_HOURS}h freshness window.")
             if len(vulnerable_segments) > 0 and weather_rain_mm > 10.0:
@@ -422,11 +442,14 @@ class RouteRiskEngine:
         trend_txt_ta = f" போக்கு: {forecast_trend.summary_ta}" if forecast_trend else ""
 
         if category == "LOW":
-            en = (
-                f"Safe Corridor (Risk Index: {score}/100). No severe blockages or flood traps detected. "
-                f"Elevation is stable.{trend_txt}"
+            qualification = (
+                " Nominal conditions based on available reports. Note: Absence of hazard reports does not guarantee safety."
+                if hazard_count == 0 else " No severe blockages or flood traps detected. Elevation is stable."
             )
-            ta = f"பாதுகாப்பான பாதை (அபாய குறியீடு: {score}/100). தீவிர இடர்பாடுகள் எதுவும் இல்லை.{trend_txt_ta}"
+            en = (
+                f"Nominal Corridor (Risk Index: {score}/100).{qualification}{trend_txt}"
+            )
+            ta = f"பெயரளவு பாதை (அபாய குறியீடு: {score}/100). தீவிர இடர்பாடுகள் எதுவும் அறிக்கையிடப்படவில்லை.{trend_txt_ta}"
         elif category == "ELEVATED":
             en = (
                 f"Elevated Caution (Risk Index: {score}/100). {hazard_count} localized hazard(s) nearby. "
