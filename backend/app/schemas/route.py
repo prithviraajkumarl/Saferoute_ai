@@ -51,6 +51,8 @@ class CandidateRoute(BaseModel):
     risk_category: str  # LOW, ELEVATED, MODERATE, HIGH, CRITICAL
     is_recommended: bool
     has_critical_closure: bool
+    rejection_reason_en: Optional[str] = None
+    rejection_reason_ta: Optional[str] = None
     contributing_hazards: List[HazardEvidenceItem] = []
     vulnerable_segments: List[VulnerableSegmentItem] = []
     forecast_trend: Optional[ForecastRiskTrend] = None
@@ -77,7 +79,7 @@ class RouteAssessmentOut(BaseModel):
     origin: Dict[str, float]
     destination: Dict[str, float]
     candidate_routes: List[CandidateRoute]
-    recommended_route_index: int
+    recommended_route_index: int = Field(default=-1, description="Index of recommended safe route, or -1 if all routes are rejected")
     engine_version: str
     evaluated_at: datetime
     weather_summary: Optional[Dict[str, Any]] = None

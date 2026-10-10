@@ -312,16 +312,26 @@ class RouteRiskEngine:
 
         # 5. Route Selection Logic: Strict critical restriction exclusion
         valid_candidates = [c for c in evaluated_candidates if not c.has_critical_closure]
-        if not valid_candidates:
-            # All routes compromised: Pick lowest risk, but warn explicitly
-            valid_candidates = evaluated_candidates
-
-        safest = min(valid_candidates, key=lambda c: (c.risk_score, c.duration_seconds))
-        recommended_index = safest.route_index
 
         for c in evaluated_candidates:
-            if c.route_index == recommended_index:
-                c.is_recommended = True
+            if c.has_critical_closure:
+                c.rejection_reason_en = (
+                    "Route rejected: Intersects confirmed active physical road closure or critical blockage."
+                )
+                c.rejection_reason_ta = (
+                    "பாதை நிராகரிக்கப்பட்டது: உறுதிப்படுத்தப்பட்ட சாலை அடைப்பு அல்லது கடுமையான தடை உள்ளது."
+                )
+                c.is_recommended = False
+
+        if not valid_candidates:
+            # All routes compromised: STRICT SAFETY RULE - Do NOT recommend any closed route!
+            recommended_index = -1
+        else:
+            safest = min(valid_candidates, key=lambda c: (c.risk_score, c.duration_seconds))
+            recommended_index = safest.route_index
+            for c in evaluated_candidates:
+                if c.route_index == recommended_index:
+                    c.is_recommended = True
 
         return evaluated_candidates, recommended_index
 

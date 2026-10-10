@@ -275,3 +275,133 @@ def test_risk_engine_missing_weather_safety_defaults():
     assert len(results) == 1
     assert results[0].risk_score < 25.0
 
+
+def test_risk_engine_all_routes_closed_rejection():
+    engine = RouteRiskEngine()
+    candidates = [
+        {
+            "index": 0,
+            "name": "Arterial Highway",
+            "distance_meters": 4000.0,
+            "duration_seconds": 500.0,
+            "coordinates": [[80.20, 13.00], [80.21, 13.01], [80.22, 13.02]],
+        },
+        {
+            "index": 1,
+            "name": "Secondary Link",
+            "distance_meters": 5000.0,
+            "duration_seconds": 600.0,
+            "coordinates": [[80.20, 13.00], [80.19, 13.01], [80.22, 13.02]],
+        },
+    ]
+    # Two separate confirmed road closures blocking both routes
+    c1 = HazardReport(
+        id="c-01",
+        hazard_type="road_closure",
+        latitude=13.01,
+        longitude=80.21,  # Blocks Route 0
+        severity="CRITICAL",
+        status="VERIFIED",
+        source="POLICE_CONTROL_ROOM",
+        source_timestamp=datetime.now(timezone.utc),
+    )
+    c2 = HazardReport(
+        id="c-02",
+        hazard_type="road_closure",
+        latitude=13.01,
+        longitude=80.19,  # Blocks Route 1
+        severity="CRITICAL",
+        status="VERIFIED",
+        source="STATE_DISASTER_MGMT",
+        source_timestamp=datetime.now(timezone.utc),
+    )
+    results, rec_idx = engine.evaluate_routes(candidates, hazards=[c1, c2])
+    assert len(results) == 2
+    # Strict safety rule: NO route should be recommended when all are compromised
+    assert rec_idx == -1
+    for r in results:
+        assert r.is_recommended is False
+        assert r.has_critical_closure is True
+        assert r.risk_category == "CRITICAL"
+        assert r.rejection_reason_en is not None
+        assert "Route rejected" in r.rejection_reason_en
+
+
+def test_risk_engine_near_closure_not_intersecting():
+    engine = RouteRiskEngine()
+    candidates = [
+        {
+            "index": 0,
+            "name": "Main Artery",
+            "distance_meters": 5000.0,
+            "duration_seconds": 600.0,
+            "coordinates": [[80.20, 13.00], [80.21, 13.01], [80.22, 13.02]],
+        }
+    ]
+    # Hazard is ~660 meters away (0.006 deg * 111,000m ~ 666m)
+    # Inside 1200m buffer, but well outside the 350m physical road corridor threshold
+    near_closure = HazardReport(
+        id="c-near",
+        hazard_type="road_closure",
+        latitude=13.016,  # 0.006 deg away from line point (80.21, 13.01)
+        longitude=80.21,
+        severity="CRITICAL",
+        status="VERIFIED",
+        source="CITIZEN",
+        source_timestamp=datetime.now(timezone.utc),
+    )
+    results, rec_idx = engine.evaluate_routes(candidates, hazards=[near_closure])
+    assert len(results) == 1
+    # Proximity penalty is recorded, but corridor is NOT critically closed
+    assert results[0].has_critical_closure is False
+    assert results[0].is_recommended is True
+    assert rec_idx == 0
+
+
+def test_risk_engine_unverified_closure_metadata():
+    engine = RouteRiskEngine()
+    candidates = [
+        {
+            "index": 0,
+            "name": "Downtown Link",
+            "distance_meters": 5000.0,
+            "duration_seconds": 600.0,
+            "coordinates": [[80.20, 13.00], [80.21, 13.01], [80.22, 13.02]],
+        }
+    ]
+    # Unverified citizen report on the route line
+    unverified_closure = HazardReport(
+        id="c-unverified",
+        hazard_type="road_closure",
+        latitude=13.01,
+        longitude=80.21,
+        severity="HIGH",
+        status="PENDING",  # Not verified!
+        source="CITIZEN_APP",
+        source_timestamp=datetime.now(timezone.utc),
+    )
+    results, rec_idx = engine.evaluate_routes(candidates, hazards=[unverified_closure])
+    assert len(results) == 1
+    # Without VERIFIED status, it does not trigger a hard critical closure
+    assert results[0].has_critical_closure is False
+    assert results[0].is_recommended is True
+
+
+@pytest.mark.asyncio
+async def test_osrm_provider_offline_fallback():
+    from app.integrations.routing.osrm_router import OsrmRouterClient
+    # Point client to a non-existent port to guarantee connection refusal
+    client = OsrmRouterClient(base_url="http://127.0.0.1:59999")
+    corridors = await client.get_candidate_routes(
+        origin_lat=13.0827,
+        origin_lng=80.2707,
+        dest_lat=13.0067,
+        dest_lng=80.2206,
+    )
+    assert len(corridors) == 3
+    assert corridors[0]["name"].startswith("Route A")
+    assert corridors[0]["source"] == "SafeRoute Topological Engine (Resilient)"
+    assert len(corridors[0]["coordinates"]) > 10
+    assert corridors[0]["distance_meters"] > 0
+
+

@@ -47,6 +47,8 @@ export interface CandidateRoute {
   risk_category: 'LOW' | 'ELEVATED' | 'MODERATE' | 'HIGH' | 'CRITICAL';
   is_recommended: boolean;
   has_critical_closure: boolean;
+  rejection_reason_en?: string;
+  rejection_reason_ta?: string;
   contributing_hazards: HazardEvidenceItem[];
   vulnerable_segments?: VulnerableSegmentItem[];
   forecast_trend?: ForecastRiskTrend;

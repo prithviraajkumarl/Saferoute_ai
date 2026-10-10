@@ -182,7 +182,7 @@ export const App: React.FC = () => {
       setAssessment(res);
       setCandidateRoutes(res.candidate_routes);
       setRecommendedIndex(res.recommended_route_index);
-      setSelectedRouteIndex(res.recommended_route_index);
+      setSelectedRouteIndex(res.recommended_route_index >= 0 ? res.recommended_route_index : 0);
     } catch (e) {
       console.error('Route evaluation error:', e);
     } finally {

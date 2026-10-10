@@ -303,6 +303,23 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
             )}
           </div>
 
+          {/* No Safe Route Alert Banner */}
+          {assessment.recommended_route_index === -1 && (
+            <div className="p-3 rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-900 text-xs flex items-start gap-2 shadow-xs">
+              <ShieldAlert className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <div className="font-bold uppercase tracking-wide text-rose-700">
+                  {language === 'ta' ? 'பாதுகாப்பான பாதை கிடைக்கவில்லை' : 'No Verified Safe Route Available'}
+                </div>
+                <div className="text-[11px] text-rose-800 mt-0.5">
+                  {language === 'ta'
+                    ? 'மதிப்பிடப்பட்ட அனைத்து பாதைகளிலும் சாலை அடைப்புகள் உள்ளன. பாதுகாப்பான வழி எதுவும் இல்லை. அதிகாரப்பூர்வ உத்தரவுகளைப் பின்பற்றவும்.'
+                    : 'All evaluated candidate corridors intersect confirmed physical road closures. Do not attempt travel without civil emergency clearance.'}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Route Options Tabs */}
           <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
             {assessment.candidate_routes.map((r) => {
@@ -322,10 +339,15 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
                   <div className="flex items-center gap-1.5 font-bold">
                     {isRec ? (
                       <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
+                    ) : r.has_critical_closure ? (
+                      <ShieldAlert className="w-3.5 h-3.5 text-rose-500" />
                     ) : (
                       <Car className="w-3.5 h-3.5 text-slate-400" />
                     )}
                     <span>Option {r.route_index + 1}</span>
+                    {r.has_critical_closure && (
+                      <span className="text-[9px] px-1 py-0.2 bg-rose-200 text-rose-800 rounded font-bold">CLOSED</span>
+                    )}
                   </div>
                   <div className="text-[10px] text-slate-500 mt-0.5">
                     {(r.distance_meters / 1000).toFixed(1)} km • {Math.round(r.duration_seconds / 60)} min
@@ -353,6 +375,11 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
                   {currentRoute.is_recommended && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-600 text-white font-semibold">
                       RECOMMENDED
+                    </span>
+                  )}
+                  {currentRoute.has_critical_closure && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-600 text-white font-semibold">
+                      REJECTED
                     </span>
                   )}
                 </div>
@@ -383,7 +410,10 @@ export const RoutePlanner: React.FC<RoutePlannerProps> = ({
                 <div>
                   <div className="font-bold">CRITICAL RESTRICTION: Road Closure Confirmed</div>
                   <div className="text-[11px] text-rose-800 mt-0.5">
-                    Severe obstruction or confirmed physical road blockage detected on corridor. Strictly prevented from being recommended as a safe path.
+                    {language === 'ta' && currentRoute.rejection_reason_ta
+                      ? currentRoute.rejection_reason_ta
+                      : currentRoute.rejection_reason_en ||
+                        'Severe obstruction or confirmed physical road blockage detected on corridor. Strictly prevented from being recommended as a safe path.'}
                   </div>
                 </div>
               </div>

@@ -87,7 +87,21 @@ async def assess_route_risk(
         hourly_forecast=hourly_dicts,
     )
 
-    recommended_candidate = next((c for c in candidates if c.route_index == recommended_index), candidates[0])
+    if recommended_index >= 0:
+        recommended_candidate = next((c for c in candidates if c.route_index == recommended_index), candidates[0])
+        summary_en = recommended_candidate.explanation_en
+        summary_ta = recommended_candidate.explanation_ta
+    else:
+        # All routes compromised - no safe route available
+        recommended_candidate = candidates[0]
+        summary_en = (
+            "CRITICAL ALERT: All evaluated routes intersect confirmed road closures. "
+            "No verified safe route is available. Evacuees must shelter in place or contact emergency coordination authorities."
+        )
+        summary_ta = (
+            "அதிதீவிர எச்சரிக்கை: அனைத்து வழிகளிலும் சாலை அடைப்புகள் உள்ளன. "
+            "பாதுகாப்பான பாதை எதுவும் இல்லை. அவசர சேவைகளைத் தொடர்பு கொள்ளவும்."
+        )
 
     # 5. Persist Route Assessment Snapshot
     assessment_model = RouteAssessment(
@@ -96,13 +110,13 @@ async def assess_route_risk(
         destination_lat=req.destination_lat,
         destination_lng=req.destination_lng,
         overall_score=recommended_candidate.risk_score,
-        risk_category=recommended_candidate.risk_category,
+        risk_category="CRITICAL" if recommended_index == -1 else recommended_candidate.risk_category,
         engine_version=risk_engine.version,
         distance_meters=recommended_candidate.distance_meters,
         duration_seconds=recommended_candidate.duration_seconds,
         geometry_json=json.dumps(recommended_candidate.coordinates),
-        summary_en=recommended_candidate.explanation_en,
-        summary_ta=recommended_candidate.explanation_ta,
+        summary_en=summary_en,
+        summary_ta=summary_ta,
         is_simulated=req.is_simulated,
     )
 
